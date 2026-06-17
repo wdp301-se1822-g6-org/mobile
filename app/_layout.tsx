@@ -32,12 +32,15 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(washer)" />
-        <Stack.Screen name="booking" />
-        <Stack.Screen name="vehicles" />
-        <Stack.Screen name="vouchers" />
-        <Stack.Screen name="loyalty" />
-        <Stack.Screen name="chat" />
-        <Stack.Screen name="work-order" />
+        <Stack.Screen name="booking/[id]" />
+        <Stack.Screen name="booking/new" />
+        <Stack.Screen name="booking/reschedule" />
+        <Stack.Screen name="vehicles/index" />
+        <Stack.Screen name="vehicles/new" />
+        <Stack.Screen name="vouchers/index" />
+        <Stack.Screen name="loyalty/transactions" />
+        <Stack.Screen name="chat/index" />
+        <Stack.Screen name="work-order/[id]" />
         <Stack.Screen name="profile" />
       </Stack>
       <Toast />
