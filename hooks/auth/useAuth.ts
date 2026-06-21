@@ -12,10 +12,10 @@ export function useLogin() {
 }
 
 export function useRegister() {
-  const login = useAuthStore((s) => s.login);
+  // /auth/register returns the created user only — no tokens.
+  // Caller should follow up with useLogin() to acquire a session.
   return useMutation({
     mutationFn: (dto: RegisterDto) => authService.register(dto),
-    onSuccess: (data) => login(data.accessToken, data.refreshToken, data.user),
   });
 }
 

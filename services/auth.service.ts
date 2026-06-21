@@ -7,7 +7,7 @@ export const authService = {
     axiosInstance.post<AuthResponse>(API.auth.login, dto).then((r) => r.data),
 
   register: (dto: RegisterDto) =>
-    axiosInstance.post<AuthResponse>(API.auth.register, dto).then((r) => r.data),
+    axiosInstance.post<User>(API.auth.register, dto).then((r) => r.data),
 
   logout: (refreshToken: string) =>
     axiosInstance.post(API.auth.logout, { refreshToken }),

@@ -5,6 +5,7 @@ import { Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 const TIER_COLORS: Record<TierName, string> = {
+  none: Colors.textDisabled,
   bronze: Colors.bronze,
   silver: Colors.silver,
   gold: Colors.gold,
