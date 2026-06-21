@@ -10,13 +10,22 @@ type Props = {
 
 export function EmptyState({ icon: Icon, title, description }: Props) {
   return (
-    <View className="flex-1 items-center justify-center px-8 py-16">
-      {Icon && <Icon size={48} color={Colors.textDisabled} strokeWidth={1.5} />}
-      <Text className="mt-4 text-base font-semibold text-center" style={{ color: Colors.textPrimary }}>
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, paddingVertical: 64 }}>
+      {Icon && (
+        <View style={{
+          width: 84, height: 84, borderRadius: 42,
+          backgroundColor: Colors.primaryLight,
+          alignItems: 'center', justifyContent: 'center',
+          marginBottom: 16,
+        }}>
+          <Icon size={36} color={Colors.primary} strokeWidth={1.5} />
+        </View>
+      )}
+      <Text style={{ fontSize: 16, fontWeight: '700', color: Colors.textPrimary, textAlign: 'center' }}>
         {title}
       </Text>
       {description && (
-        <Text className="mt-2 text-sm text-center" style={{ color: Colors.textSecondary }}>
+        <Text style={{ fontSize: 13, color: Colors.textSecondary, textAlign: 'center', marginTop: 6, lineHeight: 19, maxWidth: 280 }}>
           {description}
         </Text>
       )}

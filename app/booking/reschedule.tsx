@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Colors } from '@/constants/Colors';
+import { useT } from '@/i18n/useT';
 import { useAvailableSlots, useOrder, useRescheduleOrder } from '@/hooks/booking/useBooking';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
@@ -11,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
 export default function RescheduleScreen() {
+  const t = useT();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: order, isLoading } = useOrder(id);
   const { mutateAsync: reschedule, isPending } = useRescheduleOrder();
@@ -24,17 +26,17 @@ export default function RescheduleScreen() {
           from: new Date().toISOString(),
           to: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
         }
-      : null
+      : null,
   );
 
   const handleConfirm = async () => {
     if (!selectedSlot) return;
     try {
       await reschedule({ id, dto: { scheduledAt: selectedSlot } });
-      Toast.show({ type: 'success', text1: 'Đã đổi lịch thành công' });
+      Toast.show({ type: 'success', text1: t('reschedule.successTitle') });
       router.back();
     } catch {
-      Toast.show({ type: 'error', text1: 'Không thể đổi lịch' });
+      Toast.show({ type: 'error', text1: t('reschedule.failedTitle') });
     }
   };
 
@@ -46,15 +48,15 @@ export default function RescheduleScreen() {
         <Pressable onPress={() => router.back()} style={{ padding: 4 }}>
           <ArrowLeft size={22} color={Colors.textPrimary} strokeWidth={1.5} />
         </Pressable>
-        <Text style={{ fontSize: 17, fontWeight: '700', color: Colors.textPrimary }}>Đổi lịch</Text>
+        <Text style={{ fontSize: 17, fontWeight: '700', color: Colors.textPrimary }}>{t('reschedule.title')}</Text>
       </View>
 
       <View style={{ padding: 16, gap: 12, flex: 1 }}>
-        <Text style={{ fontSize: 15, fontWeight: '600', color: Colors.textPrimary }}>Chọn khung giờ mới</Text>
+        <Text style={{ fontSize: 15, fontWeight: '600', color: Colors.textPrimary }}>{t('reschedule.pickNewSlot')}</Text>
         {loadingSlots ? <LoadingSpinner /> : (
           <Animated.View entering={FadeInDown.springify()} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
             {slots?.map((slot) => {
-              const t = new Date(slot.startAt);
+              const tt = new Date(slot.startAt);
               const isSelected = selectedSlot === slot.startAt;
               return (
                 <Pressable
@@ -67,10 +69,10 @@ export default function RescheduleScreen() {
                   }}
                 >
                   <Text style={{ fontSize: 14, fontWeight: '700', color: isSelected ? Colors.white : Colors.textPrimary }}>
-                    {t.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                    {tt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
                   </Text>
                   <Text style={{ fontSize: 11, color: isSelected ? 'rgba(255,255,255,0.8)' : Colors.textSecondary, marginTop: 2 }}>
-                    {t.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}
+                    {tt.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}
                   </Text>
                 </Pressable>
               );
@@ -78,7 +80,7 @@ export default function RescheduleScreen() {
           </Animated.View>
         )}
         {selectedSlot && (
-          <Button title="Xác nhận đổi lịch" onPress={handleConfirm} loading={isPending} className="mt-auto" />
+          <Button title={t('reschedule.confirm')} onPress={handleConfirm} loading={isPending} className="mt-auto" />
         )}
       </View>
     </SafeAreaView>

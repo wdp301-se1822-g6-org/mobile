@@ -2,6 +2,7 @@ import { VoucherCard } from '@/components/voucher/VoucherCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Colors } from '@/constants/Colors';
+import { useT } from '@/i18n/useT';
 import { useVouchers } from '@/hooks/voucher/useVoucher';
 import { VoucherStatus } from '@/types/voucher';
 import { router } from 'expo-router';
@@ -11,16 +12,17 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const TABS: { label: string; value: VoucherStatus | undefined }[] = [
-  { label: 'Tất cả', value: undefined },
-  { label: 'Có thể dùng', value: 'unused' },
-  { label: 'Đã dùng', value: 'used' },
-  { label: 'Hết hạn', value: 'expired' },
-];
-
 export default function VouchersScreen() {
+  const t = useT();
   const [status, setStatus] = useState<VoucherStatus | undefined>(undefined);
   const { data: vouchers, isLoading } = useVouchers(status);
+
+  const TABS: { labelKey: string; value: VoucherStatus | undefined }[] = [
+    { labelKey: 'voucher.filterAll',     value: undefined },
+    { labelKey: 'voucher.filterUnused',  value: 'unused' },
+    { labelKey: 'voucher.filterUsed',    value: 'used' },
+    { labelKey: 'voucher.filterExpired', value: 'expired' },
+  ];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -28,30 +30,37 @@ export default function VouchersScreen() {
         <Pressable onPress={() => router.back()} style={{ padding: 4 }}>
           <ArrowLeft size={22} color={Colors.textPrimary} strokeWidth={1.5} />
         </Pressable>
-        <Text style={{ fontSize: 17, fontWeight: '700', color: Colors.textPrimary }}>Voucher của tôi</Text>
+        <Text style={{ fontSize: 17, fontWeight: '700', color: Colors.textPrimary }}>{t('voucher.title')}</Text>
       </View>
 
-      {/* Filter tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 12 }}>
-        {TABS.map((t) => (
-          <Pressable
-            key={t.label}
-            onPress={() => setStatus(t.value)}
-            style={{
-              paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999,
-              backgroundColor: status === t.value ? Colors.primary : Colors.surface,
-              borderWidth: 1, borderColor: status === t.value ? Colors.primary : Colors.border,
-            }}
-          >
-            <Text style={{ fontSize: 13, fontWeight: '600', color: status === t.value ? Colors.white : Colors.textSecondary }}>
-              {t.label}
-            </Text>
-          </Pressable>
-        ))}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0, flexShrink: 0 }}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 12, alignItems: 'center' }}
+      >
+        {TABS.map((tab) => {
+          const active = status === tab.value;
+          return (
+            <Pressable
+              key={tab.labelKey}
+              onPress={() => setStatus(tab.value)}
+              style={{
+                paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999,
+                backgroundColor: active ? Colors.primary : Colors.surface,
+                borderWidth: 1, borderColor: active ? Colors.primary : Colors.border,
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '600', color: active ? Colors.white : Colors.textSecondary }}>
+                {t(tab.labelKey as any)}
+              </Text>
+            </Pressable>
+          );
+        })}
       </ScrollView>
 
       {isLoading ? <LoadingSpinner /> : !vouchers?.length ? (
-        <EmptyState icon={Tag} title="Không có voucher" description="Hoàn thành dịch vụ để nhận voucher ưu đãi" />
+        <EmptyState icon={Tag} title={t('voucher.empty')} description={t('voucher.emptySub')} />
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} showsVerticalScrollIndicator={false}>
           {vouchers.map((v, i) => (

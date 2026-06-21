@@ -1,4 +1,5 @@
 import { Colors } from '@/constants/Colors';
+import { useT } from '@/i18n/useT';
 import { chatService } from '@/services/chat.service';
 import { ChatMessage } from '@/types/chat';
 import { router } from 'expo-router';
@@ -9,8 +10,9 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ChatScreen() {
+  const t = useT();
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', content: 'Xin chào! Tôi là trợ lý AI của WAVE. Tôi có thể giúp bạn đặt lịch, hỏi về dịch vụ, hoặc giải đáp thắc mắc. 😊' },
+    { role: 'assistant', content: t('chat.intro') },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,15 +23,14 @@ export default function ChatScreen() {
     const text = input.trim();
     if (!text || loading) return;
     setInput('');
-    const userMsg: ChatMessage = { role: 'user', content: text };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...prev, { role: 'user', content: text }]);
     setLoading(true);
     try {
       const res = await chatService.sendMessage(text, sessionId);
       setSessionId(res.sessionId);
       setMessages((prev) => [...prev, { role: 'assistant', content: res.reply }]);
     } catch {
-      setMessages((prev) => [...prev, { role: 'assistant', content: 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.' }]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: t('chat.error') }]);
     } finally {
       setLoading(false);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
@@ -46,8 +47,8 @@ export default function ChatScreen() {
           <Bot size={20} color={Colors.primary} strokeWidth={1.5} />
         </View>
         <View>
-          <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.textPrimary }}>Trợ lý AI WAVE</Text>
-          <Text style={{ fontSize: 12, color: Colors.success }}>● Trực tuyến</Text>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.textPrimary }}>{t('chat.title')}</Text>
+          <Text style={{ fontSize: 12, color: Colors.success }}>{t('chat.online')}</Text>
         </View>
       </View>
 
@@ -57,7 +58,7 @@ export default function ChatScreen() {
         keyExtractor={(_, i) => i.toString()}
         contentContainerStyle={{ padding: 16, gap: 12 }}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
-        renderItem={({ item, index }) => {
+        renderItem={({ item }) => {
           const isUser = item.role === 'user';
           return (
             <Animated.View
@@ -76,11 +77,7 @@ export default function ChatScreen() {
                 borderBottomRightRadius: isUser ? 4 : 16,
                 borderBottomLeftRadius: isUser ? 16 : 4,
                 padding: 12,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 4,
-                elevation: 1,
+                shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
               }}>
                 <Text style={{ fontSize: 14, color: isUser ? Colors.white : Colors.textPrimary, lineHeight: 20 }}>
                   {item.content}
@@ -95,7 +92,7 @@ export default function ChatScreen() {
               <Bot size={16} color={Colors.primary} strokeWidth={1.5} />
             </View>
             <View style={{ backgroundColor: Colors.surface, borderRadius: 16, borderBottomLeftRadius: 4, padding: 12 }}>
-              <Text style={{ color: Colors.textSecondary, fontSize: 14 }}>Đang soạn...</Text>
+              <Text style={{ color: Colors.textSecondary, fontSize: 14 }}>{t('chat.typing')}</Text>
             </View>
           </View>
         ) : null}
@@ -109,7 +106,7 @@ export default function ChatScreen() {
           <TextInput
             value={input}
             onChangeText={setInput}
-            placeholder="Nhập tin nhắn..."
+            placeholder={t('chat.placeholder')}
             placeholderTextColor={Colors.textDisabled}
             multiline
             style={{
