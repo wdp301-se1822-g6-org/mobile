@@ -1,0 +1,19 @@
+import { useAuthStore } from '@/stores/useAuthStore';
+import { Redirect } from 'expo-router';
+import { useEffect } from 'react';
+
+export default function Index() {
+  const { isLoggedIn, authUser, initAuth, isInitialized } = useAuthStore();
+
+  useEffect(() => {
+    initAuth();
+  }, []);
+
+  if (!isInitialized) return null;
+
+  if (!isLoggedIn) return <Redirect href="/(auth)/welcome" />;
+
+  if (authUser?.role === 'washer') return <Redirect href="/(washer)/queue" />;
+
+  return <Redirect href="/(tabs)/home" />;
+}
