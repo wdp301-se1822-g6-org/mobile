@@ -41,6 +41,7 @@ export default function RootLayout() {
         <Stack.Screen name="loyalty/transactions" />
         <Stack.Screen name="chat/index" />
         <Stack.Screen name="work-order/[id]" />
+        <Stack.Screen name="feedback/[orderId]" />
         <Stack.Screen name="profile" />
       </Stack>
       <Toast />

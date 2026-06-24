@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Colors } from '@/constants/Colors';
+import { useT } from '@/i18n/useT';
 import { useFinishWorkOrder, useMyWorkOrder, useStartWorkOrder } from '@/hooks/work-order/useWorkOrder';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -13,21 +14,22 @@ import Toast from 'react-native-toast-message';
 import { axiosInstance } from '@/services/api';
 import { API } from '@/constants/endpoints';
 
-const STATUS_LABEL: Record<string, string> = {
-  waiting: 'Đang chờ',
-  in_progress: 'Đang rửa',
-  done: 'Đã xong',
-  qc_passed: 'QC đạt',
-  qc_failed: 'QC không đạt',
-};
-
 export default function WorkOrderDetailScreen() {
+  const t = useT();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: workOrder, isLoading } = useMyWorkOrder(id);
   const { mutateAsync: startOrder, isPending: starting } = useStartWorkOrder();
   const { mutateAsync: finishOrder, isPending: finishing } = useFinishWorkOrder();
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+
+  const STATUS_KEY: Record<string, string> = {
+    waiting:     t('workOrder.statusWaiting'),
+    in_progress: t('workOrder.statusInProgress'),
+    done:        t('workOrder.statusDone'),
+    qc_passed:   t('workOrder.statusQcPassed'),
+    qc_failed:   t('workOrder.statusQcFailed'),
+  };
 
   const pickPhotos = async () => {
     const result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: false });
@@ -42,7 +44,7 @@ export default function WorkOrderDetailScreen() {
         });
         setPhotos((prev) => [...prev, res.data.url]);
       } catch {
-        Toast.show({ type: 'error', text1: 'Không tải được ảnh' });
+        Toast.show({ type: 'error', text1: t('workOrder.photoUploadErr') });
       } finally {
         setUploading(false);
       }
@@ -52,28 +54,28 @@ export default function WorkOrderDetailScreen() {
   const handleStart = async () => {
     try {
       await startOrder(id);
-      Toast.show({ type: 'success', text1: 'Bắt đầu rửa xe' });
+      Toast.show({ type: 'success', text1: t('workOrder.startOk') });
     } catch {
-      Toast.show({ type: 'error', text1: 'Không thể bắt đầu' });
+      Toast.show({ type: 'error', text1: t('workOrder.startErr') });
     }
   };
 
   const handleFinish = () => {
     if (photos.length === 0) {
-      Toast.show({ type: 'error', text1: 'Cần ít nhất 1 ảnh hoàn thành' });
+      Toast.show({ type: 'error', text1: t('workOrder.needPhotos') });
       return;
     }
-    Alert.alert('Hoàn thành', 'Xác nhận đã rửa xe xong?', [
-      { text: 'Huỷ', style: 'cancel' },
+    Alert.alert(t('workOrder.finishConfirmTitle'), t('workOrder.finishConfirmBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Xác nhận',
+        text: t('common.confirm'),
         onPress: async () => {
           try {
             await finishOrder({ id, dto: { checkoutPhotos: photos } });
-            Toast.show({ type: 'success', text1: 'Hoàn thành công việc!' });
+            Toast.show({ type: 'success', text1: t('workOrder.finishOk') });
             router.back();
           } catch {
-            Toast.show({ type: 'error', text1: 'Không thể hoàn thành' });
+            Toast.show({ type: 'error', text1: t('workOrder.finishErr') });
           }
         },
       },
@@ -93,14 +95,13 @@ export default function WorkOrderDetailScreen() {
         <Pressable onPress={() => router.back()} style={{ padding: 4 }}>
           <ArrowLeft size={22} color={Colors.textPrimary} strokeWidth={1.5} />
         </Pressable>
-        <Text style={{ fontSize: 17, fontWeight: '700', color: Colors.textPrimary, flex: 1 }}>Chi tiết công việc</Text>
+        <Text style={{ fontSize: 17, fontWeight: '700', color: Colors.textPrimary, flex: 1 }}>{t('workOrder.title')}</Text>
         <View style={{ backgroundColor: Colors.primaryLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-          <Text style={{ color: Colors.primary, fontSize: 12, fontWeight: '600' }}>{STATUS_LABEL[workOrder.status]}</Text>
+          <Text style={{ color: Colors.primary, fontSize: 12, fontWeight: '600' }}>{STATUS_KEY[workOrder.status]}</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        {/* Car info */}
         <Animated.View
           entering={FadeInDown.springify()}
           style={{ backgroundColor: Colors.surface, borderRadius: 16, padding: 16, gap: 12,
@@ -117,9 +118,9 @@ export default function WorkOrderDetailScreen() {
           </View>
 
           {[
-            { label: 'Dịch vụ', value: order.serviceTypeName },
-            { label: 'Khách hàng', value: order.customerName },
-            { label: 'Điện thoại', value: order.customerPhone },
+            { label: t('workOrder.service'),  value: order.serviceTypeName },
+            { label: t('workOrder.customer'), value: order.customerName },
+            { label: t('workOrder.phone'),    value: order.customerPhone },
           ].map((row) => (
             <View key={row.label} style={{ flexDirection: 'row', paddingVertical: 6, borderTopWidth: 1, borderTopColor: Colors.border }}>
               <Text style={{ width: 100, fontSize: 13, color: Colors.textSecondary }}>{row.label}</Text>
@@ -128,10 +129,9 @@ export default function WorkOrderDetailScreen() {
           ))}
         </Animated.View>
 
-        {/* Photos section (only for in_progress) */}
         {isInProgress && (
           <Animated.View entering={FadeInDown.delay(80).springify()}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.textPrimary, marginBottom: 10 }}>Ảnh hoàn thành</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.textPrimary, marginBottom: 10 }}>{t('workOrder.checkoutPhotos')}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {photos.map((uri, i) => (
                 <Image key={i} source={{ uri }} style={{ width: 80, height: 80, borderRadius: 10 }} />
@@ -155,14 +155,13 @@ export default function WorkOrderDetailScreen() {
           </Animated.View>
         )}
 
-        {/* Action buttons */}
         <Animated.View entering={FadeInDown.delay(120).springify()} style={{ gap: 10 }}>
           {isWaiting && (
-            <Button title="Bắt đầu rửa xe" onPress={handleStart} loading={starting} />
+            <Button title={t('workOrder.startBtn')} onPress={handleStart} loading={starting} />
           )}
           {isInProgress && (
             <Button
-              title="Hoàn thành"
+              title={t('workOrder.finishBtn')}
               onPress={handleFinish}
               loading={finishing || uploading}
             />
@@ -170,7 +169,7 @@ export default function WorkOrderDetailScreen() {
           {(workOrder.status === 'done' || workOrder.status === 'qc_passed') && (
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, backgroundColor: '#DCFCE7', borderRadius: 16 }}>
               <CheckCircle size={20} color={Colors.success} strokeWidth={1.5} />
-              <Text style={{ color: Colors.success, fontWeight: '700', fontSize: 15 }}>Công việc hoàn thành</Text>
+              <Text style={{ color: Colors.success, fontWeight: '700', fontSize: 15 }}>{t('workOrder.finishedBadge')}</Text>
             </View>
           )}
         </Animated.View>

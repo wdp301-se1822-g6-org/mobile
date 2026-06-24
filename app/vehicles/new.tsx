@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Colors } from '@/constants/Colors';
+import { useT } from '@/i18n/useT';
 import { useCreateVehicle, useVehicleTypes } from '@/hooks/vehicle/useVehicle';
 import { router } from 'expo-router';
 import { ArrowLeft, ChevronRight } from 'lucide-react-native';
@@ -11,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
 export default function NewVehicleScreen() {
+  const t = useT();
   const { data: vehicleTypes, isLoading } = useVehicleTypes();
   const { mutateAsync: createVehicle, isPending } = useCreateVehicle();
 
@@ -18,16 +20,13 @@ export default function NewVehicleScreen() {
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
 
   const handleSubmit = async () => {
-    if (!licensePlate.trim() || !selectedTypeId) {
-      Toast.show({ type: 'error', text1: 'Vui lòng điền đầy đủ thông tin' });
-      return;
-    }
+    if (!licensePlate.trim() || !selectedTypeId) return;
     try {
       await createVehicle({ vehicleTypeId: selectedTypeId, licensePlate: licensePlate.trim().toUpperCase() });
-      Toast.show({ type: 'success', text1: 'Đã thêm xe' });
+      Toast.show({ type: 'success', text1: t('vehicle.addOk') });
       router.back();
     } catch {
-      Toast.show({ type: 'error', text1: 'Không thể thêm xe' });
+      Toast.show({ type: 'error', text1: t('vehicle.addErr') });
     }
   };
 
@@ -37,17 +36,16 @@ export default function NewVehicleScreen() {
         <Pressable onPress={() => router.back()} style={{ padding: 4 }}>
           <ArrowLeft size={22} color={Colors.textPrimary} strokeWidth={1.5} />
         </Pressable>
-        <Text style={{ fontSize: 17, fontWeight: '700', color: Colors.textPrimary }}>Thêm xe mới</Text>
+        <Text style={{ fontSize: 17, fontWeight: '700', color: Colors.textPrimary }}>{t('vehicle.formTitle')}</Text>
       </View>
 
       <View style={{ padding: 16, gap: 20, flex: 1 }}>
-        {/* License plate */}
         <Animated.View entering={FadeInDown.springify()}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: Colors.textSecondary, marginBottom: 8 }}>BIỂN SỐ XE</Text>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: Colors.textSecondary, marginBottom: 8 }}>{t('vehicle.labelPlate')}</Text>
           <TextInput
             value={licensePlate}
             onChangeText={setLicensePlate}
-            placeholder="VD: 51G-123.45"
+            placeholder={t('vehicle.placeholderPlate')}
             placeholderTextColor={Colors.textDisabled}
             autoCapitalize="characters"
             style={{
@@ -63,27 +61,24 @@ export default function NewVehicleScreen() {
           />
         </Animated.View>
 
-        {/* Vehicle type */}
         <Animated.View entering={FadeInDown.delay(80).springify()}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: Colors.textSecondary, marginBottom: 8 }}>LOẠI XE</Text>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: Colors.textSecondary, marginBottom: 8 }}>{t('vehicle.labelType')}</Text>
           {isLoading ? <LoadingSpinner size="small" /> : (
             <View style={{ gap: 8 }}>
-              {vehicleTypes?.map((t) => (
+              {vehicleTypes?.map((vt) => (
                 <Pressable
-                  key={t.id}
-                  onPress={() => setSelectedTypeId(t.id)}
+                  key={vt.id}
+                  onPress={() => setSelectedTypeId(vt.id)}
                   style={{
-                    backgroundColor: selectedTypeId === t.id ? Colors.primaryLight : Colors.surface,
-                    borderRadius: 12,
-                    padding: 14,
-                    flexDirection: 'row',
-                    alignItems: 'center',
+                    backgroundColor: selectedTypeId === vt.id ? Colors.primaryLight : Colors.surface,
+                    borderRadius: 12, padding: 14,
+                    flexDirection: 'row', alignItems: 'center',
                     borderWidth: 1.5,
-                    borderColor: selectedTypeId === t.id ? Colors.primary : Colors.border,
+                    borderColor: selectedTypeId === vt.id ? Colors.primary : Colors.border,
                   }}
                 >
-                  <Text style={{ flex: 1, fontSize: 14, fontWeight: '500', color: Colors.textPrimary }}>{t.name}</Text>
-                  <ChevronRight size={16} color={selectedTypeId === t.id ? Colors.primary : Colors.textDisabled} strokeWidth={1.5} />
+                  <Text style={{ flex: 1, fontSize: 14, fontWeight: '500', color: Colors.textPrimary }}>{vt.name}</Text>
+                  <ChevronRight size={16} color={selectedTypeId === vt.id ? Colors.primary : Colors.textDisabled} strokeWidth={1.5} />
                 </Pressable>
               ))}
             </View>
@@ -91,7 +86,7 @@ export default function NewVehicleScreen() {
         </Animated.View>
 
         <Button
-          title="Thêm xe"
+          title={t('vehicle.addBtn')}
           onPress={handleSubmit}
           loading={isPending}
           disabled={!licensePlate.trim() || !selectedTypeId}

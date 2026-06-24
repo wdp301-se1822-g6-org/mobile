@@ -1,4 +1,5 @@
 import { Colors } from '@/constants/Colors';
+import { useT } from '@/i18n/useT';
 import { Order, OrderStatus } from '@/types/booking';
 import { formatPrice } from '@/utils/formatters';
 import { Calendar, Car, Clock } from 'lucide-react-native';
@@ -20,18 +21,19 @@ const STATUS_ACCENT: Record<OrderStatus, string> = {
   no_show:     Colors.textSecondary,
 };
 
-const PAYMENT_MAP = {
-  unpaid:   { label: 'Chưa TT', color: '#92400E', bg: '#FEF3C7' },
-  paid:     { label: 'Đã TT',   color: Colors.success, bg: '#DCFCE7' },
-  refunded: { label: 'Hoàn tiền', color: Colors.textSecondary, bg: Colors.border },
+const PAYMENT_STYLE = {
+  unpaid:   { color: '#92400E',           bg: '#FEF3C7' },
+  paid:     { color: Colors.success,      bg: '#DCFCE7' },
+  refunded: { color: Colors.textSecondary, bg: Colors.border },
 };
 
 export function OrderCard({ order, onPress }: Props) {
+  const t = useT();
   const date = new Date(order.scheduledAt);
-  const dateStr = date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const timeStr = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  const dateStr = date.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const timeStr = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   const hasDiscount = order.discountAmount > 0;
-  const paymentBadge = PAYMENT_MAP[order.paymentStatus] ?? PAYMENT_MAP.unpaid;
+  const paymentStyle = PAYMENT_STYLE[order.paymentStatus] ?? PAYMENT_STYLE.unpaid;
   const accentColor = STATUS_ACCENT[order.status] ?? Colors.primary;
 
   return (
@@ -49,29 +51,25 @@ export function OrderCard({ order, onPress }: Props) {
         flexDirection: 'row',
       }}
     >
-      {/* Left accent bar */}
       <View style={{ width: 4, backgroundColor: accentColor }} />
 
       <View style={{ flex: 1 }}>
-        {/* Header: service name + status */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10 }}>
           <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.textPrimary, flex: 1, marginRight: 10 }} numberOfLines={1}>
-            {order.serviceName || 'Dịch vụ rửa xe'}
+            {order.serviceName || t('common.noData')}
           </Text>
           <StatusBadge status={order.status} />
         </View>
 
-        {/* Divider */}
         <View style={{ height: 1, backgroundColor: Colors.border, marginHorizontal: 14 }} />
 
-        {/* Info rows */}
         <View style={{ paddingHorizontal: 14, paddingVertical: 12, gap: 7 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Car size={13} color={Colors.textSecondary} strokeWidth={1.5} />
             <Text style={{ fontSize: 13, color: Colors.textSecondary }}>
               {order.licensePlate
                 ? `${order.licensePlate}${order.vehicleTypeName ? ' · ' + order.vehicleTypeName : ''}`
-                : 'Chưa có xe'}
+                : '—'}
             </Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -83,7 +81,6 @@ export function OrderCard({ order, onPress }: Props) {
           </View>
         </View>
 
-        {/* Footer */}
         <View style={{
           flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
           backgroundColor: Colors.background,
@@ -91,8 +88,8 @@ export function OrderCard({ order, onPress }: Props) {
           borderTopWidth: 1, borderTopColor: Colors.border,
         }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <View style={{ backgroundColor: paymentBadge.bg, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
-              <Text style={{ fontSize: 11, fontWeight: '600', color: paymentBadge.color }}>{paymentBadge.label}</Text>
+            <View style={{ backgroundColor: paymentStyle.bg, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: paymentStyle.color }}>{t(`payment.${order.paymentStatus}` as any)}</Text>
             </View>
             {hasDiscount && (
               <View style={{ backgroundColor: '#DCFCE7', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
