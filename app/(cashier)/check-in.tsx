@@ -1,0 +1,212 @@
+import { CheckInCard } from '@/components/cashier/CheckInCard';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Colors } from '@/constants/Colors';
+import { useLogout } from '@/hooks/auth/useAuth';
+import { useCashierOrders } from '@/hooks/cashier/useCheckIn';
+import { AdminOrder, OrderStatus } from '@/services/cashier.service';
+import { router } from 'expo-router';
+import { Camera, LogOut, Search, X } from 'lucide-react-native';
+import { useMemo, useState } from 'react';
+import { Alert, Pressable, SectionList, Text, TextInput, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+type Filter = 'all' | 'pending' | 'checked_in';
+
+const FILTER_STATUS: Record<Filter, OrderStatus | undefined> = {
+  all: undefined,
+  pending: 'confirmed',
+  checked_in: 'checked_in',
+};
+
+function dayKey(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'unknown';
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'Không rõ ngày';
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (sameDay(d, today)) return 'Hôm nay';
+  if (sameDay(d, yesterday)) return 'Hôm qua';
+  if (sameDay(d, tomorrow)) return 'Ngày mai';
+  return d.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+type Section = { title: string; key: string; sortAt: number; data: AdminOrder[] };
+
+function buildSections(items: AdminOrder[]): Section[] {
+  const map = new Map<string, Section>();
+  for (const item of items) {
+    const key = dayKey(item.scheduledAt);
+    let section = map.get(key);
+    if (!section) {
+      section = { key, title: dayLabel(item.scheduledAt), sortAt: new Date(item.scheduledAt).getTime() || 0, data: [] };
+      map.set(key, section);
+    }
+    section.data.push(item);
+  }
+  const sections = [...map.values()];
+  // Ngày gần nhất lên trên; trong mỗi ngày sắp theo giờ tăng dần.
+  sections.sort((a, b) => b.sortAt - a.sortAt);
+  for (const s of sections) {
+    s.data.sort((a, b) => (new Date(a.scheduledAt).getTime() || 0) - (new Date(b.scheduledAt).getTime() || 0));
+  }
+  return sections;
+}
+
+export default function CheckInScreen() {
+  const [filter, setFilter] = useState<Filter>('all');
+  const [search, setSearch] = useState('');
+  const { data, isLoading, isRefetching, refetch } = useCashierOrders({ status: FILTER_STATUS[filter], limit: 50 });
+  const { mutate: logout } = useLogout();
+
+  const items = data?.data ?? [];
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(
+      (o) =>
+        o.licensePlate?.toLowerCase().includes(q) ||
+        o.customerName?.toLowerCase().includes(q),
+    );
+  }, [items, search]);
+
+  const sections = useMemo(() => buildSections(filtered), [filtered]);
+  const total = filtered.length;
+
+  const handleLogout = () => {
+    Alert.alert('Đăng xuất', 'Bạn có chắc muốn đăng xuất?', [
+      { text: 'Huỷ', style: 'cancel' },
+      {
+        text: 'Đăng xuất',
+        style: 'destructive',
+        onPress: () => logout(undefined, { onSettled: () => router.replace('/(auth)/welcome') }),
+      },
+    ]);
+  };
+
+  return (
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', padding: 16, paddingBottom: 8 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 22, fontWeight: '700', color: Colors.textPrimary }}>Check-in xe</Text>
+          <Text style={{ fontSize: 13, color: Colors.textSecondary, marginTop: 2 }}>
+            {filter === 'pending' ? `${total} xe chờ check-in` : filter === 'checked_in' ? `${total} xe đã nhận` : `${total} lịch hẹn`}
+          </Text>
+        </View>
+        <Pressable onPress={handleLogout} hitSlop={8} style={{ padding: 8 }}>
+          <LogOut size={20} color={Colors.danger} strokeWidth={1.5} />
+        </Pressable>
+      </View>
+
+      {/* Search bar */}
+      <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+        <View
+          style={{
+            flexDirection: 'row', alignItems: 'center', gap: 8,
+            backgroundColor: Colors.surface, borderRadius: 12,
+            borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 12, height: 44,
+          }}
+        >
+          <Search size={18} color={Colors.textSecondary} strokeWidth={1.5} />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Tìm biển số xe hoặc tên khách hàng"
+            placeholderTextColor={Colors.textDisabled}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            style={{ flex: 1, fontSize: 14, color: Colors.textPrimary, padding: 0 }}
+          />
+          {search.length > 0 && (
+            <Pressable onPress={() => setSearch('')} hitSlop={8}>
+              <X size={18} color={Colors.textSecondary} strokeWidth={1.5} />
+            </Pressable>
+          )}
+        </View>
+      </View>
+
+      {/* Filter tabs */}
+      <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 8 }}>
+        {([
+          { key: 'all', label: 'Tất cả' },
+          { key: 'pending', label: 'Chờ check-in' },
+          { key: 'checked_in', label: 'Đã nhận xe' },
+        ] as const).map((tab) => {
+          const active = filter === tab.key;
+          return (
+            <Pressable
+              key={tab.key}
+              onPress={() => setFilter(tab.key)}
+              style={{
+                paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999,
+                backgroundColor: active ? Colors.primary : Colors.surface,
+                borderWidth: 1, borderColor: active ? Colors.primary : Colors.border,
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '600', color: active ? Colors.white : Colors.textSecondary }}>
+                {tab.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {isLoading ? (
+        <LoadingSpinner />
+      ) : !sections.length ? (
+        <EmptyState
+          icon={Camera}
+          title={search.trim() ? 'Không tìm thấy' : 'Không có xe'}
+          description={
+            search.trim()
+              ? 'Không có xe nào khớp với từ khoá tìm kiếm'
+              : filter === 'pending'
+                ? 'Chưa có xe nào cần check-in'
+                : filter === 'checked_in'
+                  ? 'Chưa có xe nào đã nhận'
+                  : 'Chưa có lịch hẹn nào'
+          }
+        />
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ padding: 16, paddingTop: 4 }}
+          showsVerticalScrollIndicator={false}
+          stickySectionHeadersEnabled={false}
+          onRefresh={refetch}
+          refreshing={isRefetching}
+          renderSectionHeader={({ section }) => (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 10 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.textPrimary, textTransform: 'capitalize' }}>
+                {section.title}
+              </Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} />
+              <Text style={{ fontSize: 12, color: Colors.textSecondary }}>{section.data.length} xe</Text>
+            </View>
+          )}
+          renderItem={({ item, index }) => (
+            <Animated.View entering={FadeInDown.delay(index * 40).springify()} style={{ marginBottom: 12 }}>
+              <CheckInCard
+                order={item}
+                onPress={() => router.push({ pathname: '/check-in/[id]' as any, params: { id: item.id } })}
+              />
+            </Animated.View>
+          )}
+        />
+      )}
+    </SafeAreaView>
+  );
+}

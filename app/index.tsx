@@ -15,5 +15,7 @@ export default function Index() {
 
   if (authUser?.role === 'washer') return <Redirect href="/(washer)/queue" />;
 
+  if (authUser?.role === 'cashier') return <Redirect href="/(cashier)/check-in" />;
+
   return <Redirect href="/(tabs)/home" />;
 }
