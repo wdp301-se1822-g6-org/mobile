@@ -1,6 +1,6 @@
-import { WorkOrderCard } from '@/components/work-order/WorkOrderCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { WorkOrderCard } from '@/components/work-order/WorkOrderCard';
 import { Colors } from '@/constants/Colors';
 import { useMyWorkOrders } from '@/hooks/work-order/useWorkOrder';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -13,7 +13,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const ACTIVE: WorkOrderStatus[] = ['in_progress'];
-const DONE: WorkOrderStatus[] = ['done', 'qc_passed', 'qc_failed'];
+const DONE: WorkOrderStatus[] = ['done'];
 
 function dayKey(iso?: string) {
   if (!iso) return '';
@@ -29,7 +29,12 @@ function dayLabel(key: string) {
   const today = dayKey(new Date().toISOString());
   if (key === today) return 'Hôm nay';
   const d = new Date(key + 'T00:00:00');
-  return d.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+  return d.toLocaleDateString('vi-VN', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 }
 
 type Section = { title: string; data: WorkOrder[] };
@@ -63,7 +68,9 @@ export default function MyOrdersScreen() {
       .map(([key, data]) => ({
         title: dayLabel(key),
         data: data.sort((a, b) =>
-          (b.finishedAt ?? b.scheduledAt ?? '').localeCompare(a.finishedAt ?? a.scheduledAt ?? ''),
+          (b.finishedAt ?? b.scheduledAt ?? '').localeCompare(
+            a.finishedAt ?? a.scheduledAt ?? '',
+          ),
         ),
       }));
 
@@ -76,24 +83,33 @@ export default function MyOrdersScreen() {
   const isEmpty = !sections.length;
 
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
+    <SafeAreaView
+      edges={['top']}
+      style={{ flex: 1, backgroundColor: Colors.background }}
+    >
       <View style={{ padding: 16, paddingBottom: 8 }}>
-        <Text style={{ fontSize: 22, fontWeight: '700', color: Colors.textPrimary }}>Công việc của tôi</Text>
+        <Text
+          style={{ fontSize: 22, fontWeight: '700', color: Colors.textPrimary }}
+        >
+          Công việc của tôi
+        </Text>
       </View>
 
       {/* Search */}
       <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
-        <View style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 8,
-          backgroundColor: Colors.surface,
-          borderRadius: 12,
-          paddingHorizontal: 12,
-          height: 44,
-          borderWidth: 1,
-          borderColor: Colors.border,
-        }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            backgroundColor: Colors.surface,
+            borderRadius: 12,
+            paddingHorizontal: 12,
+            height: 44,
+            borderWidth: 1,
+            borderColor: Colors.border,
+          }}
+        >
           <Search size={18} color={Colors.textSecondary} strokeWidth={1.5} />
           <TextInput
             value={query}
@@ -101,7 +117,12 @@ export default function MyOrdersScreen() {
             placeholder="Tìm biển số xe hoặc mã phiếu"
             placeholderTextColor={Colors.textDisabled}
             autoCapitalize="characters"
-            style={{ flex: 1, fontSize: 14, color: Colors.textPrimary, paddingVertical: 0 }}
+            style={{
+              flex: 1,
+              fontSize: 14,
+              color: Colors.textPrimary,
+              paddingVertical: 0,
+            }}
           />
           {query ? (
             <Pressable onPress={() => setQuery('')} hitSlop={8}>
@@ -117,7 +138,9 @@ export default function MyOrdersScreen() {
         <EmptyState
           icon={ClipboardList}
           title={query ? 'Không tìm thấy' : 'Chưa có công việc'}
-          description={query ? 'Thử từ khoá khác' : 'Nhận việc từ hàng chờ để bắt đầu'}
+          description={
+            query ? 'Thử từ khoá khác' : 'Nhận việc từ hàng chờ để bắt đầu'
+          }
         />
       ) : (
         <SectionList
@@ -129,22 +152,31 @@ export default function MyOrdersScreen() {
           refreshing={isLoading}
           stickySectionHeadersEnabled={false}
           renderSectionHeader={({ section }) => (
-            <Text style={{
-              fontSize: 13,
-              fontWeight: '700',
-              color: Colors.textSecondary,
-              marginTop: 8,
-              marginBottom: 4,
-            }}>
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: '700',
+                color: Colors.textSecondary,
+                marginTop: 8,
+                marginBottom: 4,
+              }}
+            >
               {section.title} · {section.data.length}
             </Text>
           )}
           renderItem={({ item, index }) => (
-            <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 50).springify()}>
+            <Animated.View
+              entering={FadeInDown.delay(Math.min(index, 8) * 50).springify()}
+            >
               <WorkOrderCard
                 workOrder={item}
                 washerName={meName}
-                onPress={() => router.push({ pathname: '/work-order/[id]', params: { id: item.id } })}
+                onPress={() =>
+                  router.push({
+                    pathname: '/work-order/[id]',
+                    params: { id: item.id },
+                  })
+                }
               />
             </Animated.View>
           )}

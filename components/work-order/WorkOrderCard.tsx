@@ -8,8 +8,6 @@ const STATUS_MAP: Record<WorkOrderStatus, { label: string; color: string; bg: st
   waiting:    { label: 'Đang chờ',    color: Colors.warning,       bg: '#FEF9C3' },
   in_progress:{ label: 'Đang rửa',    color: Colors.primary,       bg: Colors.primaryLight },
   done:       { label: 'Xong',        color: Colors.success,       bg: '#DCFCE7' },
-  qc_passed:  { label: 'QC đạt',      color: Colors.success,       bg: '#DCFCE7' },
-  qc_failed:  { label: 'QC không đạt',color: Colors.danger,        bg: '#FEE2E2' },
 };
 
 export function WorkOrderCard({

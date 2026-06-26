@@ -58,6 +58,8 @@ export type PreviewOrderResponse = {
 };
 
 export type AvailableSlot = {
-  startAt: string;
-  endAt: string;
+  scheduledAt: string;
+  remainingCapacity: number;
+  isGoldenHour: boolean;
+  discountPercent: number;
 };

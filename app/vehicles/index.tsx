@@ -3,6 +3,7 @@ import { Colors } from '@/constants/Colors';
 import { useT } from '@/i18n/useT';
 import { useDeleteVehicle, useSetDefaultVehicle, useVehicles } from '@/hooks/vehicle/useVehicle';
 import { Vehicle } from '@/types/vehicle';
+import { vehicleIcon } from '@/utils/vehicleIcon';
 import { router } from 'expo-router';
 import { ArrowLeft, Car, MoreVertical, Plus, Star, Trash2 } from 'lucide-react-native';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
@@ -19,6 +20,7 @@ function VehicleRow({
 }) {
   const t = useT();
   const isDefault = vehicle.isDefault;
+  const Icon = vehicleIcon(vehicle.vehicleTypeName);
 
   return (
     <View
@@ -47,7 +49,7 @@ function VehicleRow({
             backgroundColor: 'rgba(255,255,255,0.15)',
             alignItems: 'center', justifyContent: 'center',
           }}>
-            <Car size={18} color={Colors.white} strokeWidth={1.8} />
+            <Icon size={18} color={Colors.white} strokeWidth={1.8} />
           </View>
           <Text style={{ fontSize: 20, fontWeight: '900', color: Colors.white, letterSpacing: 1 }}>
             {vehicle.licensePlate}
