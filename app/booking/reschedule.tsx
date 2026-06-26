@@ -62,12 +62,12 @@ export default function RescheduleScreen() {
         {loadingSlots ? <LoadingSpinner /> : (
           <Animated.View entering={FadeInDown.springify()} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
             {slots?.map((slot) => {
-              const tt = new Date(slot.startAt);
-              const isSelected = selectedSlot === slot.startAt;
+              const tt = new Date(slot.scheduledAt);
+              const isSelected = selectedSlot === slot.scheduledAt;
               return (
                 <Pressable
-                  key={slot.startAt}
-                  onPress={() => setSelectedSlot(slot.startAt)}
+                  key={slot.scheduledAt}
+                  onPress={() => setSelectedSlot(slot.scheduledAt)}
                   style={{
                     backgroundColor: isSelected ? Colors.primary : Colors.surface,
                     borderRadius: 12, padding: 12, minWidth: '30%', alignItems: 'center',

@@ -1,4 +1,4 @@
-export type WorkOrderStatus = 'waiting' | 'in_progress' | 'done' | 'qc_passed' | 'qc_failed';
+export type WorkOrderStatus = 'waiting' | 'in_progress' | 'done';
 
 export type WorkOrder = {
   id: string;

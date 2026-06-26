@@ -19,6 +19,7 @@ export const Colors = {
   bronze: '#CD7F32',
   silver: '#9CA3AF',
   gold: '#F59E0B',
+  goldLight: '#FEF6E0',
   platinum: '#6366F1',
 } as const;
 

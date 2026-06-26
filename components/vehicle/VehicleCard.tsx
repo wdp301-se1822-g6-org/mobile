@@ -1,6 +1,7 @@
 import { Colors } from '@/constants/Colors';
 import { Vehicle } from '@/types/vehicle';
-import { Car, Star } from 'lucide-react-native';
+import { vehicleIcon } from '@/utils/vehicleIcon';
+import { Star } from 'lucide-react-native';
 import { Text, View } from 'react-native';
 import { PressableCard } from '../ui/PressableCard';
 
@@ -11,6 +12,7 @@ type Props = {
 };
 
 export function VehicleCard({ vehicle, onPress }: Props) {
+  const Icon = vehicleIcon(vehicle.vehicleTypeName);
   return (
     <PressableCard
       onPress={onPress}
@@ -31,7 +33,7 @@ export function VehicleCard({ vehicle, onPress }: Props) {
           backgroundColor: Colors.primaryLight,
           alignItems: 'center', justifyContent: 'center',
         }}>
-          <Car size={22} color={Colors.primary} strokeWidth={1.5} />
+          <Icon size={22} color={Colors.primary} strokeWidth={1.5} />
         </View>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
