@@ -38,39 +38,46 @@ export default function WorkOrderDetailScreen() {
   const [viewerUri, setViewerUri] = useState<string | null>(null);
 
   const STATUS_KEY: Record<string, string> = {
+    assigned: t('workOrder.statusAssigned'),
     waiting: t('workOrder.statusWaiting'),
     in_progress: t('workOrder.statusInProgress'),
     done: t('workOrder.statusDone'),
   };
 
   const pickPhotos = async () => {
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.7,
-      allowsEditing: false,
-    });
-    if (!result.canceled && result.assets[0]) {
+    // expo-image-picker không tự xin quyền camera; phải xin trước khi mở,
+    // nếu không launchCameraAsync sẽ lỗi/không mở được trên Android.
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Toast.show({ type: 'error', text1: t('workOrder.cameraDenied') });
+      return;
+    }
+    setUploading(true);
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 0.7,
+        allowsEditing: false,
+      });
+      if (result.canceled || !result.assets[0]) return;
       const uri = result.assets[0].uri;
-      setUploading(true);
-      try {
-        const form = new FormData();
-        form.append('file', {
-          uri,
-          name: 'photo.jpg',
-          type: 'image/jpeg',
-        } as any);
-        const res = await axiosInstance.post<{ url: string }>(
-          API.upload.image,
-          form,
-          {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          },
-        );
-        setPhotos((prev) => [...prev, res.data.url]);
-      } catch {
-        Toast.show({ type: 'error', text1: t('workOrder.photoUploadErr') });
-      } finally {
-        setUploading(false);
-      }
+      const form = new FormData();
+      form.append('file', {
+        uri,
+        name: 'photo.jpg',
+        type: 'image/jpeg',
+      } as any);
+      const res = await axiosInstance.post<{ url: string }>(
+        API.upload.image,
+        form,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        },
+      );
+      setPhotos((prev) => [...prev, res.data.url]);
+    } catch {
+      Toast.show({ type: 'error', text1: t('workOrder.photoUploadErr') });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -112,9 +119,13 @@ export default function WorkOrderDetailScreen() {
   if (isLoading) return <LoadingSpinner />;
   if (!workOrder) return null;
 
-  const { vehicleSnapshot: vehicle } = workOrder;
-  const isWaiting = workOrder.status === 'waiting';
-  const isInProgress = workOrder.status === 'in_progress';
+  const vehicle = workOrder.vehicleSnapshot ?? {};
+  // Suy ra trạng thái từ mốc thời gian + status, không phụ thuộc đúng 1 chuỗi,
+  // để nút "Bắt đầu" / "Hoàn thành" vẫn hiện dù backend trả status khác.
+  const isDone = workOrder.status === 'done' || !!workOrder.finishedAt;
+  const isInProgress =
+    !isDone && (workOrder.status === 'in_progress' || !!workOrder.startedAt);
+  const isWaiting = !isDone && !isInProgress;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -194,7 +205,7 @@ export default function WorkOrderDetailScreen() {
                   color: Colors.textPrimary,
                 }}
               >
-                {vehicle.plate}
+                {vehicle.plate ?? '—'}
               </Text>
               <Text style={{ fontSize: 13, color: Colors.textSecondary }}>
                 {vehicle.vehicleTypeName}
@@ -332,7 +343,7 @@ export default function WorkOrderDetailScreen() {
               loading={finishing || uploading}
             />
           )}
-          {workOrder.status === 'done' && (
+          {isDone && (
             <View
               style={{
                 flexDirection: 'row',

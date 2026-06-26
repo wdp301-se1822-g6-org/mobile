@@ -5,6 +5,7 @@ import { Text, View } from 'react-native';
 import { PressableCard } from '../ui/PressableCard';
 
 const STATUS_MAP: Record<WorkOrderStatus, { label: string; color: string; bg: string }> = {
+  assigned:   { label: 'Chờ rửa',     color: Colors.warning,       bg: '#FEF9C3' },
   waiting:    { label: 'Đang chờ',    color: Colors.warning,       bg: '#FEF9C3' },
   in_progress:{ label: 'Đang rửa',    color: Colors.primary,       bg: Colors.primaryLight },
   done:       { label: 'Xong',        color: Colors.success,       bg: '#DCFCE7' },
@@ -19,8 +20,8 @@ export function WorkOrderCard({
   washerName?: string;
   onPress?: () => void;
 }) {
-  const s = STATUS_MAP[workOrder.status];
-  const { vehicleSnapshot: vehicle } = workOrder;
+  const s = STATUS_MAP[workOrder.status] ?? STATUS_MAP.waiting;
+  const vehicle = workOrder.vehicleSnapshot ?? {};
   const washer = washerName ?? workOrder.assignedWasherName;
 
   return (
@@ -49,9 +50,11 @@ export function WorkOrderCard({
       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 6 }}>
         <Car size={14} color={Colors.textSecondary} strokeWidth={1.5} />
         <Text style={{ fontSize: 13, fontWeight: '700', color: Colors.textPrimary, letterSpacing: 0.5 }}>
-          {vehicle.plate}
+          {vehicle.plate ?? '—'}
         </Text>
-        <Text style={{ fontSize: 13, color: Colors.textSecondary }}>· {vehicle.vehicleTypeName}</Text>
+        {vehicle.vehicleTypeName ? (
+          <Text style={{ fontSize: 13, color: Colors.textSecondary }}>· {vehicle.vehicleTypeName}</Text>
+        ) : null}
       </View>
 
       {workOrder.customerName ? (

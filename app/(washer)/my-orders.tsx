@@ -51,7 +51,7 @@ export default function MyOrdersScreen() {
     const q = query.trim().toLowerCase();
     const matches = (o: WorkOrder) =>
       !q ||
-      o.vehicleSnapshot.plate.toLowerCase().includes(q) ||
+      (o.vehicleSnapshot?.plate ?? '').toLowerCase().includes(q) ||
       o.code.toLowerCase().includes(q);
 
     const active = all.filter((o) => ACTIVE.includes(o.status) && matches(o));

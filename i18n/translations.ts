@@ -359,6 +359,7 @@ export const translations = {
     },
     workOrder: {
       title: 'Chi tiết công việc',
+      statusAssigned: 'Chờ rửa',
       statusWaiting: 'Đang chờ',
       statusInProgress: 'Đang rửa',
       statusDone: 'Đã xong',
@@ -383,6 +384,7 @@ export const translations = {
       finishErr: 'Không thể hoàn thành',
       needPhotos: 'Cần ít nhất 1 ảnh hoàn thành',
       photoUploadErr: 'Không tải được ảnh',
+      cameraDenied: 'Cần cấp quyền camera để chụp ảnh',
       finishedBadge: 'Công việc hoàn thành',
     },
     cashier: {
@@ -759,6 +761,7 @@ export const translations = {
     },
     workOrder: {
       title: 'Work order',
+      statusAssigned: 'Assigned',
       statusWaiting: 'Waiting',
       statusInProgress: 'Washing',
       statusDone: 'Done',
@@ -783,6 +786,7 @@ export const translations = {
       finishErr: 'Could not finish',
       needPhotos: 'At least 1 photo is required',
       photoUploadErr: 'Could not upload photo',
+      cameraDenied: 'Camera permission is required to take photos',
       finishedBadge: 'Work order completed',
     },
     cashier: {

@@ -1,5 +1,5 @@
 import { workOrderService } from '@/services/work-order.service';
-import { FinishWorkOrderDto } from '@/types/work-order';
+import { FinishWorkOrderDto, WorkOrder } from '@/types/work-order';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export const WORK_ORDERS_KEY = ['work-orders'] as const;
@@ -12,10 +12,16 @@ export function useMyWorkOrders() {
 }
 
 export function useMyWorkOrder(id: string) {
+  const qc = useQueryClient();
   return useQuery({
     queryKey: ['work-orders', id],
     queryFn: () => workOrderService.getMyWorkOrder(id),
     enabled: !!id,
+    initialData: () =>
+      qc.getQueryData<WorkOrder[]>(WORK_ORDERS_KEY)?.find((w) => w.id === id),
+    placeholderData: () =>
+      qc.getQueryData<WorkOrder[]>(WORK_ORDERS_KEY)?.find((w) => w.id === id),
+    retry: false,
   });
 }
 

@@ -1,12 +1,12 @@
-export type WorkOrderStatus = 'waiting' | 'in_progress' | 'done';
+export type WorkOrderStatus = 'assigned' | 'waiting' | 'in_progress' | 'done';
 
 export type WorkOrder = {
   id: string;
   orderId: string;
   code: string;
-  vehicleSnapshot: {
-    plate: string;
-    vehicleTypeName: string;
+  vehicleSnapshot?: {
+    plate?: string;
+    vehicleTypeName?: string;
     color?: string;
   };
   serviceName: string;
