@@ -83,14 +83,14 @@ function DatePill({
   );
 }
 
-function BookingCard({ item, index }: { item: WasherScheduleItem; index: number }) {
+function BookingCard({ item, index, isLast }: { item: WasherScheduleItem; index: number; isLast: boolean }) {
   const s = STATUS_MAP[item.status] ?? { label: item.status, color: Colors.textSecondary, bg: Colors.border };
   const isPaid = item.paymentStatus === 'paid';
 
   return (
     <Animated.View
       entering={FadeInDown.delay(index * 70).springify()}
-      style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}
+      style={{ flexDirection: 'row', gap: 12, marginBottom: isLast ? 0 : 12 }}
     >
       {/* Timeline column */}
       <View style={{ width: 52, alignItems: 'center' }}>
@@ -105,7 +105,10 @@ function BookingCard({ item, index }: { item: WasherScheduleItem; index: number 
             {formatTime(item.scheduledAt)}
           </Text>
         </View>
-        <View style={{ flex: 1, width: 2, backgroundColor: Colors.border, marginTop: 4, borderRadius: 1 }} />
+        {/* Connector line — hidden on the last item so it doesn't dangle */}
+        {!isLast ? (
+          <View style={{ flex: 1, width: 2, backgroundColor: Colors.border, marginTop: 4, borderRadius: 1 }} />
+        ) : null}
       </View>
 
       {/* Card */}
@@ -114,7 +117,6 @@ function BookingCard({ item, index }: { item: WasherScheduleItem; index: number 
         backgroundColor: Colors.surface,
         borderRadius: 16,
         padding: 14,
-        marginBottom: 4,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.06,
@@ -217,7 +219,8 @@ export default function ScheduleScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 12 }}
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 12, alignItems: 'flex-start' }}
       >
         {days.map((d) => (
           <DatePill
@@ -247,7 +250,9 @@ export default function ScheduleScreen() {
           keyExtractor={(item) => item.bookingId}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item, index }) => <BookingCard item={item} index={index} />}
+          renderItem={({ item, index }) => (
+            <BookingCard item={item} index={index} isLast={index === schedule.length - 1} />
+          )}
         />
       )}
     </SafeAreaView>

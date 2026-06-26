@@ -5,7 +5,7 @@ import { useT } from '@/i18n/useT';
 import { useAvailableSlots, useOrder, useRescheduleOrder } from '@/hooks/booking/useBooking';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,13 +18,19 @@ export default function RescheduleScreen() {
   const { mutateAsync: reschedule, isPending } = useRescheduleOrder();
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
 
+  const slotRange = useMemo(() => {
+    const from = new Date();
+    from.setMinutes(0, 0, 0); // round to the hour so the value is stable across renders
+    const to = new Date(from.getTime() + 3 * 24 * 60 * 60 * 1000);
+    return { from: from.toISOString(), to: to.toISOString() };
+  }, []);
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(
     order
       ? {
           serviceTypeId: order.serviceTypeId,
           vehicleTypeId: '',
-          from: new Date().toISOString(),
-          to: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+          from: slotRange.from,
+          to: slotRange.to,
         }
       : null,
   );

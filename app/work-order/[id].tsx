@@ -5,9 +5,9 @@ import { useT } from '@/i18n/useT';
 import { useFinishWorkOrder, useMyWorkOrder, useStartWorkOrder } from '@/hooks/work-order/useWorkOrder';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { ArrowLeft, Camera, Car, CheckCircle } from 'lucide-react-native';
+import { ArrowLeft, Camera, Car, CheckCircle, X } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -22,6 +22,7 @@ export default function WorkOrderDetailScreen() {
   const { mutateAsync: finishOrder, isPending: finishing } = useFinishWorkOrder();
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [viewerUri, setViewerUri] = useState<string | null>(null);
 
   const STATUS_KEY: Record<string, string> = {
     waiting:     t('workOrder.statusWaiting'),
@@ -85,7 +86,7 @@ export default function WorkOrderDetailScreen() {
   if (isLoading) return <LoadingSpinner />;
   if (!workOrder) return null;
 
-  const { order } = workOrder;
+  const { vehicleSnapshot: vehicle } = workOrder;
   const isWaiting = workOrder.status === 'waiting';
   const isInProgress = workOrder.status === 'in_progress';
 
@@ -112,22 +113,47 @@ export default function WorkOrderDetailScreen() {
               <Car size={24} color={Colors.primary} strokeWidth={1.5} />
             </View>
             <View>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: Colors.textPrimary }}>{order.licensePlate}</Text>
-              <Text style={{ fontSize: 13, color: Colors.textSecondary }}>{order.vehicleTypeName}</Text>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: Colors.textPrimary }}>{vehicle.plate}</Text>
+              <Text style={{ fontSize: 13, color: Colors.textSecondary }}>
+                {vehicle.vehicleTypeName}{vehicle.color ? ` · ${vehicle.color}` : ''}
+              </Text>
             </View>
           </View>
 
           {[
-            { label: t('workOrder.service'),  value: order.serviceTypeName },
-            { label: t('workOrder.customer'), value: order.customerName },
-            { label: t('workOrder.phone'),    value: order.customerPhone },
-          ].map((row) => (
+            { label: t('workOrder.service'),  value: workOrder.serviceName },
+            { label: t('workOrder.customer'), value: workOrder.customerName },
+            { label: t('workOrder.phone'),    value: workOrder.customerPhone },
+            { label: t('workOrder.washer'),   value: workOrder.assignedWasherName },
+            { label: t('workOrder.code'),     value: workOrder.code },
+            { label: t('workOrder.station'),  value: workOrder.stationName },
+          ].filter((row) => row.value).map((row) => (
             <View key={row.label} style={{ flexDirection: 'row', paddingVertical: 6, borderTopWidth: 1, borderTopColor: Colors.border }}>
               <Text style={{ width: 100, fontSize: 13, color: Colors.textSecondary }}>{row.label}</Text>
               <Text style={{ flex: 1, fontSize: 13, fontWeight: '600', color: Colors.textPrimary }}>{row.value}</Text>
             </View>
           ))}
         </Animated.View>
+
+        {/* Ảnh check-in đã chụp */}
+        {vehicle && workOrder.checkinPhotos?.length ? (
+          <PhotoSection
+            title={t('workOrder.checkinPhotos')}
+            photos={workOrder.checkinPhotos}
+            onOpen={setViewerUri}
+            delay={60}
+          />
+        ) : null}
+
+        {/* Ảnh check-out đã chụp */}
+        {workOrder.checkoutPhotos?.length ? (
+          <PhotoSection
+            title={t('workOrder.checkoutPhotosDone')}
+            photos={workOrder.checkoutPhotos}
+            onOpen={setViewerUri}
+            delay={90}
+          />
+        ) : null}
 
         {isInProgress && (
           <Animated.View entering={FadeInDown.delay(80).springify()}>
@@ -174,6 +200,52 @@ export default function WorkOrderDetailScreen() {
           )}
         </Animated.View>
       </ScrollView>
+
+      {/* Xem ảnh phóng to */}
+      <Modal visible={!!viewerUri} transparent animationType="fade" onRequestClose={() => setViewerUri(null)}>
+        <Pressable
+          onPress={() => setViewerUri(null)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Pressable
+            onPress={() => setViewerUri(null)}
+            hitSlop={12}
+            style={{ position: 'absolute', top: 48, right: 20, zIndex: 1, padding: 8 }}
+          >
+            <X size={28} color={Colors.white} strokeWidth={2} />
+          </Pressable>
+          {viewerUri ? (
+            <Image source={{ uri: viewerUri }} style={{ width: '92%', height: '70%' }} resizeMode="contain" />
+          ) : null}
+        </Pressable>
+      </Modal>
     </SafeAreaView>
+  );
+}
+
+function PhotoSection({
+  title,
+  photos,
+  onOpen,
+  delay,
+}: {
+  title: string;
+  photos: string[];
+  onOpen: (uri: string) => void;
+  delay: number;
+}) {
+  return (
+    <Animated.View entering={FadeInDown.delay(delay).springify()}>
+      <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.textPrimary, marginBottom: 10 }}>
+        {title} ({photos.length})
+      </Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {photos.map((uri, i) => (
+          <Pressable key={`${uri}-${i}`} onPress={() => onOpen(uri)}>
+            <Image source={{ uri }} style={{ width: 80, height: 80, borderRadius: 10, backgroundColor: Colors.border }} />
+          </Pressable>
+        ))}
+      </View>
+    </Animated.View>
   );
 }

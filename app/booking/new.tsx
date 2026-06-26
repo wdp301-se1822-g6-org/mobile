@@ -14,7 +14,7 @@ import { formatPrice } from '@/utils/formatters';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { ArrowLeft, Banknote, Calendar, Car, CheckCircle, ChevronRight, Clock, CreditCard, Tag } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeInDown, SlideInRight } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -68,15 +68,19 @@ export default function NewBookingScreen() {
 
   const service = selectedService ?? services?.find((s) => s.id === serviceId) ?? null;
 
-  const fromDate = new Date();
-  const toDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+  const slotRange = useMemo(() => {
+    const from = new Date();
+    from.setMinutes(0, 0, 0); // round to the hour so the value is stable across renders
+    const to = new Date(from.getTime() + 3 * 24 * 60 * 60 * 1000);
+    return { from: from.toISOString(), to: to.toISOString() };
+  }, []);
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(
     step === 'slot' && service && selectedVehicle
       ? {
           serviceTypeId: service.id,
           vehicleTypeId: selectedVehicle.vehicleTypeId,
-          from: fromDate.toISOString(),
-          to: toDate.toISOString(),
+          from: slotRange.from,
+          to: slotRange.to,
         }
       : null,
   );

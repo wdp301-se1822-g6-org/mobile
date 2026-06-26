@@ -37,6 +37,8 @@ export default function LoginScreen() {
       Toast.show({ type: 'success', text1: t('auth.loginOkTitle') });
       if (res.user.role === 'washer') {
         router.replace('/(washer)/queue' as any);
+      } else if (res.user.role === 'cashier') {
+        router.replace('/(cashier)/check-in' as any);
       } else {
         router.replace('/(tabs)/home');
       }

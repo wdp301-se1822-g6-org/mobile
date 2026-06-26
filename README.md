@@ -104,8 +104,3 @@ node_modules/.bin/tsc --noEmit   # Type-check the project
 - **Port 8081 in use** → `npm start -- --port 8082`
 - **Password eye toggle doesn't update** on Android → already worked around via `key` remount on `secureTextEntry` change (see [`screens/RegisterScreen.tsx`](screens/RegisterScreen.tsx) `PasswordField`)
 - **`npm audit` warnings** → safe to ignore; do NOT run `npm audit fix --force` (breaks Expo pins)
-
-
-## 📄 License
-
-WDU2026 — internal coursework project.

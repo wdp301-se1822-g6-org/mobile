@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function QueueScreen() {
   const { data: workOrders, isLoading, refetch } = useMyWorkOrders();
-  const waiting = workOrders?.filter((o) => o.order && o.status === 'waiting') ?? [];
+  const waiting = workOrders?.filter((o) => o.status === 'waiting') ?? [];
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>

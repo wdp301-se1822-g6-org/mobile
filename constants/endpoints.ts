@@ -32,6 +32,12 @@ export const API = {
   washer: {
     schedule: '/washers/me/schedule',
   },
+  cashier: {
+    orders: '/admin/orders',
+    order: (id: string) => `/admin/orders/${id}`,
+    // GET list of work orders, and POST { orderId, checkinPhotos } to check an order in
+    workOrders: '/admin/work-orders',
+  },
   serviceTypes: '/service-types',
   serviceType: (id: string) => `/service-types/${id}`,
   vehicleTypes: '/vehicle-types',
