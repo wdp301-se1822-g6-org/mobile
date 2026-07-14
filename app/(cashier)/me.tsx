@@ -2,12 +2,12 @@ import { Colors } from '@/constants/Colors';
 import { useLogout } from '@/hooks/auth/useAuth';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { router } from 'expo-router';
-import { CalendarDays, LogOut } from 'lucide-react-native';
+import { LogOut } from 'lucide-react-native';
 import { Alert, Pressable, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function WasherMeScreen() {
+export default function CashierMeScreen() {
   const { authUser } = useAuthStore();
   const { mutate: logout } = useLogout();
 
@@ -46,9 +46,8 @@ export default function WasherMeScreen() {
           Tôi
         </Text>
       </View>
-
-      {/* Profile card */}
       <Pressable onPress={() => router.push('/profile')} style={{ padding: 8 }}>
+        {/* Profile card */}
         <Animated.View
           entering={FadeInDown.springify()}
           style={{
@@ -119,66 +118,16 @@ export default function WasherMeScreen() {
                   color: Colors.primary,
                 }}
               >
-                Nhân viên rửa xe
+                Thu ngân
               </Text>
             </View>
           </View>
         </Animated.View>
       </Pressable>
 
-      {/* Menu */}
-      <Animated.View
-        entering={FadeInDown.delay(60).springify()}
-        style={{
-          marginHorizontal: 16,
-          backgroundColor: Colors.surface,
-          borderRadius: 16,
-          overflow: 'hidden',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 6,
-          elevation: 2,
-          marginBottom: 16,
-        }}
-      >
-        <Pressable
-          onPress={() => router.push('/(washer)/schedule')}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            padding: 16,
-            gap: 14,
-          }}
-        >
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              backgroundColor: Colors.primaryLight,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <CalendarDays size={20} color={Colors.primary} strokeWidth={1.5} />
-          </View>
-          <Text
-            style={{
-              flex: 1,
-              fontSize: 14,
-              fontWeight: '500',
-              color: Colors.textPrimary,
-            }}
-          >
-            Lịch làm việc
-          </Text>
-        </Pressable>
-      </Animated.View>
-
       {/* Logout */}
       <Animated.View
-        entering={FadeInDown.delay(100).springify()}
+        entering={FadeInDown.delay(60).springify()}
         style={{ marginHorizontal: 16 }}
       >
         <Pressable

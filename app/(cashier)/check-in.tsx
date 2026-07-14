@@ -2,13 +2,12 @@ import { CheckInCard } from '@/components/cashier/CheckInCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Colors } from '@/constants/Colors';
-import { useLogout } from '@/hooks/auth/useAuth';
 import { useCashierOrders } from '@/hooks/cashier/useCheckIn';
 import { AdminOrder, OrderStatus } from '@/services/cashier.service';
 import { router } from 'expo-router';
-import { Camera, LogOut, Search, X } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
-import { Alert, Pressable, SectionList, Text, TextInput, View } from 'react-native';
+import { Camera, Search, X } from 'lucide-react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, SectionList, Text, TextInput, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -67,8 +66,20 @@ function buildSections(items: AdminOrder[]): Section[] {
 export default function CheckInScreen() {
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
-  const { data, isLoading, isRefetching, refetch } = useCashierOrders({ status: FILTER_STATUS[filter], limit: 50 });
-  const { mutate: logout } = useLogout();
+  const { data, isLoading, refetch } = useCashierOrders({ status: FILTER_STATUS[filter], limit: 50 });
+
+  // Chỉ hiện vòng xoay khi người dùng tự kéo refresh. Refetch do socket đẩy về
+  // chạy ngầm, không được bật RefreshControl (trước đây dùng isRefetching nên
+  // cứ mỗi lần refetch là màn hình lại xoay).
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
 
   const items = data?.data ?? [];
 
@@ -85,29 +96,13 @@ export default function CheckInScreen() {
   const sections = useMemo(() => buildSections(filtered), [filtered]);
   const total = filtered.length;
 
-  const handleLogout = () => {
-    Alert.alert('Đăng xuất', 'Bạn có chắc muốn đăng xuất?', [
-      { text: 'Huỷ', style: 'cancel' },
-      {
-        text: 'Đăng xuất',
-        style: 'destructive',
-        onPress: () => logout(undefined, { onSettled: () => router.replace('/(auth)/welcome') }),
-      },
-    ]);
-  };
-
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', padding: 16, paddingBottom: 8 }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 22, fontWeight: '700', color: Colors.textPrimary }}>Check-in xe</Text>
-          <Text style={{ fontSize: 13, color: Colors.textSecondary, marginTop: 2 }}>
-            {filter === 'pending' ? `${total} xe chờ check-in` : filter === 'checked_in' ? `${total} xe đã nhận` : `${total} lịch hẹn`}
-          </Text>
-        </View>
-        <Pressable onPress={handleLogout} hitSlop={8} style={{ padding: 8 }}>
-          <LogOut size={20} color={Colors.danger} strokeWidth={1.5} />
-        </Pressable>
+      <View style={{ padding: 16, paddingBottom: 8 }}>
+        <Text style={{ fontSize: 22, fontWeight: '700', color: Colors.textPrimary }}>Check-in xe</Text>
+        <Text style={{ fontSize: 13, color: Colors.textSecondary, marginTop: 2 }}>
+          {filter === 'pending' ? `${total} xe chờ check-in` : filter === 'checked_in' ? `${total} xe đã nhận` : `${total} lịch hẹn`}
+        </Text>
       </View>
 
       {/* Search bar */}
@@ -186,8 +181,8 @@ export default function CheckInScreen() {
           contentContainerStyle={{ padding: 16, paddingTop: 4 }}
           showsVerticalScrollIndicator={false}
           stickySectionHeadersEnabled={false}
-          onRefresh={refetch}
-          refreshing={isRefetching}
+          onRefresh={onRefresh}
+          refreshing={refreshing}
           renderSectionHeader={({ section }) => (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 10 }}>
               <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.textPrimary, textTransform: 'capitalize' }}>

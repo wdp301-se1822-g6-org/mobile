@@ -1,8 +1,8 @@
 import { Colors } from '@/constants/Colors';
-import { useT } from '@/i18n/useT';
+import { useLocale, useT } from '@/i18n/useT';
 import { Order, OrderStatus } from '@/types/booking';
 import { formatPrice } from '@/utils/formatters';
-import { Calendar, Car, Clock } from 'lucide-react-native';
+import { Car } from 'lucide-react-native';
 import { Text, View } from 'react-native';
 import { PressableCard } from '../ui/PressableCard';
 import { StatusBadge } from './StatusBadge';
@@ -10,6 +10,8 @@ import { StatusBadge } from './StatusBadge';
 type Props = {
   order: Order;
   onPress?: () => void;
+  /** Hide the date under the time when the list already groups by day. */
+  showDate?: boolean;
 };
 
 const STATUS_ACCENT: Record<OrderStatus, string> = {
@@ -22,16 +24,19 @@ const STATUS_ACCENT: Record<OrderStatus, string> = {
 };
 
 const PAYMENT_STYLE = {
-  unpaid:   { color: '#92400E',           bg: '#FEF3C7' },
-  paid:     { color: Colors.success,      bg: '#DCFCE7' },
+  unpaid:   { color: '#92400E',            bg: '#FEF3C7' },
+  paid:     { color: Colors.success,       bg: '#DCFCE7' },
   refunded: { color: Colors.textSecondary, bg: Colors.border },
 };
 
-export function OrderCard({ order, onPress }: Props) {
+export function OrderCard({ order, onPress, showDate = true }: Props) {
   const t = useT();
+  const locale = useLocale();
+  const tag = locale === 'vi' ? 'vi-VN' : 'en-US';
+
   const date = new Date(order.scheduledAt);
-  const dateStr = date.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const timeStr = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const dateStr = date.toLocaleDateString(tag, { day: '2-digit', month: '2-digit' });
+  const timeStr = date.toLocaleTimeString(tag, { hour: '2-digit', minute: '2-digit', hour12: false });
   const hasDiscount = order.discountAmount > 0;
   const paymentStyle = PAYMENT_STYLE[order.paymentStatus] ?? PAYMENT_STYLE.unpaid;
   const accentColor = STATUS_ACCENT[order.status] ?? Colors.primary;
@@ -54,30 +59,36 @@ export function OrderCard({ order, onPress }: Props) {
       <View style={{ width: 4, backgroundColor: accentColor }} />
 
       <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10 }}>
-          <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.textPrimary, flex: 1, marginRight: 10 }} numberOfLines={1}>
-            {order.serviceName || t('common.noData')}
-          </Text>
-          <StatusBadge status={order.status} />
-        </View>
-
-        <View style={{ height: 1, backgroundColor: Colors.border, marginHorizontal: 14 }} />
-
-        <View style={{ paddingHorizontal: 14, paddingVertical: 12, gap: 7 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Car size={13} color={Colors.textSecondary} strokeWidth={1.5} />
-            <Text style={{ fontSize: 13, color: Colors.textSecondary }}>
-              {order.licensePlate
-                ? `${order.licensePlate}${order.vehicleTypeName ? ' · ' + order.vehicleTypeName : ''}`
-                : '—'}
+        <View style={{ flexDirection: 'row', paddingHorizontal: 12, paddingTop: 12, paddingBottom: 12, gap: 12 }}>
+          {/* Time column */}
+          <View style={{
+            minWidth: 52, alignItems: 'center', justifyContent: 'center',
+            paddingRight: 12, borderRightWidth: 1, borderRightColor: Colors.border,
+          }}>
+            <Text style={{ fontSize: 17, fontWeight: '800', color: Colors.textPrimary, letterSpacing: -0.3 }}>
+              {timeStr}
             </Text>
+            {showDate && (
+              <Text style={{ fontSize: 11, color: Colors.textSecondary, marginTop: 2 }}>{dateStr}</Text>
+            )}
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Calendar size={13} color={Colors.textSecondary} strokeWidth={1.5} />
-            <Text style={{ fontSize: 13, color: Colors.textSecondary }}>{dateStr}</Text>
-            <View style={{ width: 3, height: 3, borderRadius: 99, backgroundColor: Colors.textDisabled }} />
-            <Clock size={13} color={Colors.textSecondary} strokeWidth={1.5} />
-            <Text style={{ fontSize: 13, color: Colors.textSecondary }}>{timeStr}</Text>
+
+          {/* Service + vehicle */}
+          <View style={{ flex: 1, gap: 5 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: Colors.textPrimary }} numberOfLines={1}>
+                {order.serviceName || t('common.noData')}
+              </Text>
+              <StatusBadge status={order.status} />
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Car size={13} color={Colors.textSecondary} strokeWidth={1.5} />
+              <Text style={{ flex: 1, fontSize: 13, color: Colors.textSecondary }} numberOfLines={1}>
+                {order.licensePlate
+                  ? `${order.licensePlate}${order.vehicleTypeName ? ' · ' + order.vehicleTypeName : ''}`
+                  : '—'}
+              </Text>
+            </View>
           </View>
         </View>
 

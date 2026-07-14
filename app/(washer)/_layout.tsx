@@ -1,7 +1,7 @@
 import { Colors } from '@/constants/Colors';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { Tabs } from 'expo-router';
-import { ClipboardList, Clock, ListOrdered, User } from 'lucide-react-native';
+import { ClipboardList, ListOrdered, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function WasherLayout() {
@@ -30,28 +30,33 @@ export default function WasherLayout() {
         name="queue"
         options={{
           title: 'Hàng chờ',
-          tabBarIcon: ({ color, size }) => <ListOrdered size={size} color={color} strokeWidth={1.5} />,
+          tabBarIcon: ({ color, size }) => (
+            <ListOrdered size={size} color={color} strokeWidth={1.5} />
+          ),
         }}
       />
       <Tabs.Screen
         name="my-orders"
         options={{
           title: 'Của tôi',
-          tabBarIcon: ({ color, size }) => <ClipboardList size={size} color={color} strokeWidth={1.5} />,
+          tabBarIcon: ({ color, size }) => (
+            <ClipboardList size={size} color={color} strokeWidth={1.5} />
+          ),
         }}
       />
       <Tabs.Screen
         name="schedule"
         options={{
-          title: 'Lịch làm việc',
-          tabBarIcon: ({ color, size }) => <Clock size={size} color={color} strokeWidth={1.5} />,
+          href: null,
         }}
       />
       <Tabs.Screen
         name="me"
         options={{
-          title: user?.name?.split(' ').pop() ?? 'Tôi',
-          tabBarIcon: ({ color, size }) => <User size={size} color={color} strokeWidth={1.5} />,
+          title: 'Tôi',
+          tabBarIcon: ({ color, size }) => (
+            <User size={size} color={color} strokeWidth={1.5} />
+          ),
         }}
       />
     </Tabs>
