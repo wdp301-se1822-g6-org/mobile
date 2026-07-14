@@ -9,6 +9,9 @@ export const workOrderService = {
   getMyWorkOrder: (id: string) =>
     axiosInstance.get<WorkOrder>(API.me.workOrder(id)).then((r) => r.data),
 
+  getOrderWorkOrder: (orderId: string) =>
+    axiosInstance.get<WorkOrder>(API.me.orderWorkOrder(orderId)).then((r) => r.data),
+
   startWorkOrder: (id: string) =>
     axiosInstance.patch<WorkOrder>(API.me.workOrderStart(id)).then((r) => r.data),
 

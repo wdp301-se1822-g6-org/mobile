@@ -4,10 +4,11 @@ import { Colors } from '@/constants/Colors';
 import { useT } from '@/i18n/useT';
 import { useOrder } from '@/hooks/booking/useBooking';
 import { useOrderFeedback, useSubmitFeedback } from '@/hooks/feedback/useFeedback';
+import { useOrderWorkOrder } from '@/hooks/work-order/useWorkOrder';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, CheckCircle, Sparkles, Star } from 'lucide-react-native';
+import { ArrowLeft, Camera, CheckCircle, Images, Sparkles, Star, X } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -32,11 +33,50 @@ function StarRow({ value, onChange, size = 36 }: { value: number; onChange: (v: 
   );
 }
 
+function WashPhotoPreview({
+  label,
+  photos,
+  emptyLabel,
+  onOpen,
+}: {
+  label: string;
+  photos: string[];
+  emptyLabel: string;
+  onOpen: () => void;
+}) {
+  return (
+    <View style={{ flex: 1, gap: 8 }}>
+      <Text style={{ fontSize: 12, fontWeight: '700', color: Colors.textPrimary }}>{label}</Text>
+      {photos.length > 0 ? (
+        <Pressable
+          onPress={onOpen}
+          accessibilityRole="button"
+          accessibilityLabel={`${label}, ${photos.length}`}
+          style={{ aspectRatio: 4 / 3, borderRadius: 12, overflow: 'hidden', backgroundColor: Colors.border }}
+        >
+          <Image source={{ uri: photos[0] }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          <View style={{ position: 'absolute', right: 8, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(15,23,42,0.72)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 }}>
+            <Images size={12} color={Colors.white} strokeWidth={2} />
+            <Text style={{ color: Colors.white, fontSize: 11, fontWeight: '700' }}>{photos.length}</Text>
+          </View>
+        </Pressable>
+      ) : (
+        <View style={{ aspectRatio: 4 / 3, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: Colors.border, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <Camera size={22} color={Colors.textDisabled} strokeWidth={1.5} />
+          <Text style={{ color: Colors.textDisabled, fontSize: 11, textAlign: 'center' }}>{emptyLabel}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function FeedbackScreen() {
   const t = useT();
+  const screen = useWindowDimensions();
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const { data: order, isLoading: loadingOrder } = useOrder(orderId);
   const { data: existing, isLoading: loadingFeedback } = useOrderFeedback(orderId);
+  const { data: workOrder, isLoading: loadingWorkOrder } = useOrderWorkOrder(orderId);
   const { mutateAsync: submit, isPending } = useSubmitFeedback();
 
   const QUICK_TAGS = useMemo(() => [
@@ -60,6 +100,7 @@ export default function FeedbackScreen() {
   const [washerRating, setWasherRating] = useState(5);
   const [comment, setComment] = useState('');
   const [tags, setTags] = useState<string[]>([]);
+  const [viewer, setViewer] = useState<{ title: string; photos: string[]; index: number } | null>(null);
 
   const existingFeedback = existing?.feedback ?? null;
   const canRate = existing?.canRate ?? true;
@@ -92,9 +133,11 @@ export default function FeedbackScreen() {
     }
   };
 
-  if (loadingOrder || loadingFeedback) return <LoadingSpinner />;
+  if (loadingOrder || loadingFeedback || loadingWorkOrder) return <LoadingSpinner />;
 
   const alreadySubmitted = !!existingFeedback;
+  const beforePhotos = workOrder?.checkinPhotos ?? [];
+  const afterPhotos = workOrder?.checkoutPhotos ?? [];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -122,13 +165,44 @@ export default function FeedbackScreen() {
                 <CheckCircle size={22} color={Colors.success} strokeWidth={1.5} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.textPrimary }}>{order.serviceName}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.textPrimary }}>{t('status.completed')}</Text>
                 <Text style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 2 }}>
                   {order.licensePlate} · {new Date(order.scheduledAt).toLocaleDateString()}
                 </Text>
               </View>
             </Animated.View>
           )}
+
+          <Animated.View
+            entering={FadeInDown.delay(60).springify()}
+            style={{
+              backgroundColor: Colors.surface, borderRadius: 16, padding: 16,
+              shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Camera size={17} color={Colors.primary} strokeWidth={1.8} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.textPrimary }}>{t('feedback.washPhotos')}</Text>
+                <Text style={{ fontSize: 11, color: Colors.textSecondary, marginTop: 2 }}>{t('feedback.washPhotosHint')}</Text>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 14 }}>
+              <WashPhotoPreview
+                label={t('feedback.beforeWash')}
+                photos={beforePhotos}
+                emptyLabel={t('feedback.noWashPhotos')}
+                onOpen={() => setViewer({ title: t('feedback.beforeWash'), photos: beforePhotos, index: 0 })}
+              />
+              <WashPhotoPreview
+                label={t('feedback.afterWash')}
+                photos={afterPhotos}
+                emptyLabel={t('feedback.noWashPhotos')}
+                onOpen={() => setViewer({ title: t('feedback.afterWash'), photos: afterPhotos, index: 0 })}
+              />
+            </View>
+          </Animated.View>
 
           <Animated.View
             entering={FadeInDown.delay(80).springify()}
@@ -226,6 +300,43 @@ export default function FeedbackScreen() {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal visible={!!viewer} transparent animationType="fade" onRequestClose={() => setViewer(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.94)' }}>
+          {viewer && (
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              contentOffset={{ x: viewer.index * screen.width, y: 0 }}
+              onMomentumScrollEnd={(event) => {
+                const index = Math.round(event.nativeEvent.contentOffset.x / screen.width);
+                setViewer((current) => current ? { ...current, index } : current);
+              }}
+            >
+              {viewer.photos.map((uri, index) => (
+                <View key={`${uri}-${index}`} style={{ width: screen.width, height: screen.height, alignItems: 'center', justifyContent: 'center' }}>
+                  <Image source={{ uri }} style={{ width: screen.width, height: screen.height * 0.78 }} resizeMode="contain" />
+                </View>
+              ))}
+            </ScrollView>
+          )}
+
+          {viewer && (
+            <SafeAreaView edges={['top']} style={{ position: 'absolute', top: 0, left: 0, right: 0 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 }}>
+                <Text style={{ flex: 1, color: Colors.white, fontSize: 15, fontWeight: '700' }}>{viewer.title}</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, marginRight: 14 }}>
+                  {viewer.index + 1} / {viewer.photos.length}
+                </Text>
+                <Pressable onPress={() => setViewer(null)} hitSlop={12} style={{ padding: 4 }}>
+                  <X size={26} color={Colors.white} strokeWidth={2} />
+                </Pressable>
+              </View>
+            </SafeAreaView>
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
