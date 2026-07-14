@@ -7,7 +7,9 @@ import { useCancelOrder, useOrder } from '@/hooks/booking/useBooking';
 import { useOrderFeedback } from '@/hooks/feedback/useFeedback';
 import { useVehicles } from '@/hooks/vehicle/useVehicle';
 import { OrderStatus } from '@/types/booking';
+import { describeDiscountReason } from '@/utils/discount';
 import { formatPrice } from '@/utils/formatters';
+import { describeCancelReason } from '@/utils/orderReason';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { ArrowLeft, Calendar, Car, CheckCircle, Clock, CreditCard, Droplets, Hourglass, Sparkles, Star } from 'lucide-react-native';
@@ -136,6 +138,8 @@ export default function BookingDetailScreen() {
 
   const canCancel = ['pending', 'confirmed'].includes(order.status);
   const isCompleted = order.status === 'completed';
+  const isNoShow = order.status === 'no_show';
+  const cancelReasonText = describeCancelReason(order.cancelReason, t);
   const showTracker = ['confirmed', 'in_progress', 'completed'].includes(order.status);
   const needsOnlinePayment =
     order.paymentMethod === 'online' &&
@@ -197,23 +201,29 @@ export default function BookingDetailScreen() {
         {/* Service info */}
         <Animated.View
           entering={FadeInDown.delay(60).springify()}
-          style={{ backgroundColor: Colors.surface, borderRadius: 16, padding: 16, gap: 14,
+          style={{ backgroundColor: Colors.surface, borderRadius: 16, padding: 16,
             shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 }}
         >
-          <Text style={{ fontSize: 16, fontWeight: '700', color: Colors.textPrimary }}>{order.serviceName}</Text>
+          {!!order.serviceName?.trim() && (
+            <Text style={{ fontSize: 16, fontWeight: '700', lineHeight: 20, color: Colors.textPrimary, marginBottom: 8 }}>
+              {order.serviceName}
+            </Text>
+          )}
 
-          {[
-            { icon: <Car size={16} color={Colors.textSecondary} strokeWidth={1.5} />,        label: t('bookingDetail.vehicle'), value: vehicleLabel },
-            { icon: <Calendar size={16} color={Colors.textSecondary} strokeWidth={1.5} />,   label: t('bookingDetail.date'),    value: date.toLocaleDateString(undefined, { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) },
-            { icon: <Clock size={16} color={Colors.textSecondary} strokeWidth={1.5} />,      label: t('bookingDetail.time'),    value: `${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}${order.estimatedMinutes ? ` (~${order.estimatedMinutes} ${t('common.minutes')})` : ''}` },
-            { icon: <CreditCard size={16} color={Colors.textSecondary} strokeWidth={1.5} />, label: t('bookingDetail.payment'), value: paymentLabel(t, order.paymentMethod, order.paymentStatus) },
-          ].map((row) => (
-            <View key={row.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              {row.icon}
-              <Text style={{ color: Colors.textSecondary, fontSize: 13, width: 90 }}>{row.label}</Text>
-              <Text style={{ flex: 1, fontSize: 13, fontWeight: '500', color: Colors.textPrimary }}>{row.value}</Text>
-            </View>
-          ))}
+          <View style={{ gap: 12 }}>
+            {[
+              { icon: <Car size={16} color={Colors.textSecondary} strokeWidth={1.5} />,        label: t('bookingDetail.vehicle'), value: vehicleLabel },
+              { icon: <Calendar size={16} color={Colors.textSecondary} strokeWidth={1.5} />,   label: t('bookingDetail.date'),    value: date.toLocaleDateString(undefined, { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) },
+              { icon: <Clock size={16} color={Colors.textSecondary} strokeWidth={1.5} />,      label: t('bookingDetail.time'),    value: `${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}${order.estimatedMinutes ? ` (~${order.estimatedMinutes} ${t('common.minutes')})` : ''}` },
+              { icon: <CreditCard size={16} color={Colors.textSecondary} strokeWidth={1.5} />, label: t('bookingDetail.payment'), value: paymentLabel(t, order.paymentMethod, order.paymentStatus) },
+            ].map((row) => (
+              <View key={row.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                {row.icon}
+                <Text style={{ color: Colors.textSecondary, fontSize: 13, width: 90 }}>{row.label}</Text>
+                <Text style={{ flex: 1, fontSize: 13, fontWeight: '500', color: Colors.textPrimary }}>{row.value}</Text>
+              </View>
+            ))}
+          </View>
         </Animated.View>
 
         {/* Pricing */}
@@ -228,9 +238,10 @@ export default function BookingDetailScreen() {
             <Text style={{ color: Colors.textPrimary, fontSize: 13 }}>{formatPrice(order.originalAmount)}</Text>
           </View>
           {order.discountAmount > 0 && (
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ color: Colors.textSecondary, fontSize: 13 }}>
-                {t('bookingDetail.discount')}{order.discountReason ? ` (${order.discountReason})` : ''}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+              <Text style={{ flex: 1, color: Colors.textSecondary, fontSize: 13 }}>
+                {describeDiscountReason(order.discountReason, t)}
+                {order.discountPercent ? ` (-${order.discountPercent}%)` : ''}
               </Text>
               <Text style={{ color: Colors.success, fontSize: 13, fontWeight: '600' }}>-{formatPrice(order.discountAmount)}</Text>
             </View>
@@ -241,15 +252,23 @@ export default function BookingDetailScreen() {
           </View>
         </Animated.View>
 
-        {order.cancelReason && (
+        {isNoShow ? (
+          <Animated.View
+            entering={FadeInDown.delay(160).springify()}
+            style={{ backgroundColor: '#FEF3C7', borderRadius: 12, padding: 14, gap: 4 }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#92400E' }}>{t('bookingDetail.noShowTitle')}</Text>
+            <Text style={{ fontSize: 13, color: '#92400E', lineHeight: 19 }}>{t('bookingDetail.noShowBody')}</Text>
+          </Animated.View>
+        ) : cancelReasonText ? (
           <Animated.View
             entering={FadeInDown.delay(160).springify()}
             style={{ backgroundColor: '#FEE2E2', borderRadius: 12, padding: 14 }}
           >
             <Text style={{ fontSize: 13, fontWeight: '600', color: Colors.danger, marginBottom: 4 }}>{t('bookingDetail.cancelReason')}</Text>
-            <Text style={{ fontSize: 13, color: Colors.danger }}>{order.cancelReason}</Text>
+            <Text style={{ fontSize: 13, color: Colors.danger, lineHeight: 19 }}>{cancelReasonText}</Text>
           </Animated.View>
-        )}
+        ) : null}
 
         {canCancel && (
           <Animated.View entering={FadeInDown.delay(120).springify()} style={{ gap: 10 }}>

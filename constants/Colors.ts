@@ -20,7 +20,6 @@ export const Colors = {
   silver: '#9CA3AF',
   gold: '#F59E0B',
   goldLight: '#FEF6E0',
-  platinum: '#6366F1',
 } as const;
 
 export type ColorKey = keyof typeof Colors;

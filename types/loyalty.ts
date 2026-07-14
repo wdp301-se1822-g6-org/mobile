@@ -1,4 +1,15 @@
-export type TierName = 'none' | 'bronze' | 'silver' | 'gold' | 'platinum';
+export type TierName = 'basic' | 'bronze' | 'silver' | 'gold';
+
+export const TIER_NAMES: TierName[] = ['basic', 'bronze', 'silver', 'gold'];
+
+/** Free-wash voucher threshold; the API does not expose it per tier. */
+export const WASHES_PER_VOUCHER = 10;
+
+/** The API still sends legacy values such as "None"; anything unknown is the entry tier. */
+export function normalizeTier(value?: string | null): TierName {
+  const name = (value ?? '').trim().toLowerCase();
+  return TIER_NAMES.includes(name as TierName) ? (name as TierName) : 'basic';
+}
 
 export type LoyaltyAccount = {
   id: string;

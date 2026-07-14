@@ -4,14 +4,14 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Colors } from '@/constants/Colors';
 import { useT } from '@/i18n/useT';
 import { useLoyaltyAccount, useTierConfigs } from '@/hooks/loyalty/useLoyalty';
-import { TierName } from '@/types/loyalty';
+import { TierName, WASHES_PER_VOUCHER } from '@/types/loyalty';
 import { router } from 'expo-router';
-import { ChevronRight, Gift, Star } from 'lucide-react-native';
+import { Calendar, ChevronRight, Gift, Percent, Star, Ticket } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const TIER_ORDER: TierName[] = ['bronze', 'silver', 'gold', 'platinum'];
+const TIER_ORDER: TierName[] = ['basic', 'bronze', 'silver', 'gold'];
 
 export default function LoyaltyScreen() {
   const t = useT();
@@ -103,33 +103,68 @@ export default function LoyaltyScreen() {
             {/* All tiers */}
             <Animated.View entering={FadeInDown.delay(140).springify()} style={{ marginBottom: 16 }}>
               <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.textPrimary, marginBottom: 12 }}>{t('loyalty.tiersTitle')}</Text>
-              <View style={{ gap: 8 }}>
-                {TIER_ORDER.map((tier) => {
+              <View style={{ gap: 10 }}>
+                {TIER_ORDER.map((tier, i) => {
                   const config = tierConfigs?.find((c) => c.tierName === tier);
                   const isActive = tier === loyalty.tierName;
+                  const isTopTier = i === TIER_ORDER.length - 1;
+                  const minPoints = config?.minLoyaltyPoints ?? 0;
+
+                  const benefits = config
+                    ? [
+                        { icon: Star,     text: t('loyalty.benefitPoints',   { p: config.pointsPer1000Vnd }) },
+                        { icon: Percent,  text: t('loyalty.benefitDiscount', { d: config.discountPercent }) },
+                        { icon: Calendar, text: t('loyalty.benefitWindow',   { n: config.bookingWindowDays }) },
+                        { icon: Ticket,   text: t('loyalty.benefitVoucher',  { n: WASHES_PER_VOUCHER }) },
+                      ]
+                    : [];
+
                   return (
                     <View
                       key={tier}
                       style={{
                         backgroundColor: isActive ? Colors.primaryLight : Colors.surface,
-                        borderRadius: 14, padding: 14,
-                        flexDirection: 'row', alignItems: 'center', gap: 12,
+                        borderRadius: 16, padding: 14, gap: 10,
                         borderWidth: isActive ? 1.5 : 1,
                         borderColor: isActive ? Colors.primary : Colors.border,
                       }}
                     >
-                      <TierBadge tier={tier} size="sm" />
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 13, color: Colors.textSecondary }}>
-                          {config ? t('loyalty.fromPoints', { n: (config.minLoyaltyPoints ?? 0).toLocaleString() }) : '—'}
-                        </Text>
-                        {config && (
-                          <Text style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 2 }}>
-                            {t('loyalty.tierShort', { d: config.discountPercent, p: config.pointsPer1000Vnd })}
-                          </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <TierBadge tier={tier} size="sm" />
+                        <View style={{ flex: 1 }} />
+                        {isActive && (
+                          <View style={{ backgroundColor: Colors.primary, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: Colors.white }}>{t('loyalty.yourTierTag')}</Text>
+                          </View>
+                        )}
+                        {isTopTier && !isActive && (
+                          <View style={{ backgroundColor: Colors.goldLight, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: Colors.gold }}>{t('loyalty.topTierTag')}</Text>
+                          </View>
                         )}
                       </View>
-                      {isActive && <Star size={14} color={Colors.primary} fill={Colors.primary} />}
+
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: Colors.textPrimary }}>
+                        {minPoints > 0
+                          ? t('loyalty.fromPoints', { n: minPoints.toLocaleString() })
+                          : t('loyalty.tierEntry')}
+                      </Text>
+
+                      {benefits.length > 0 && (
+                        <View style={{ gap: 7, paddingTop: 4, borderTopWidth: 1, borderTopColor: isActive ? Colors.primaryMid : Colors.border }}>
+                          {benefits.map((b) => {
+                            const Icon = b.icon;
+                            return (
+                              <View key={b.text} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                                <Icon size={14} color={Colors.primary} strokeWidth={1.8} style={{ marginTop: 1 }} />
+                                <Text style={{ flex: 1, fontSize: 12.5, color: Colors.textSecondary, lineHeight: 18 }}>
+                                  {b.text}
+                                </Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      )}
                     </View>
                   );
                 })}

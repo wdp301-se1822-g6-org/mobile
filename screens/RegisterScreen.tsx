@@ -1,16 +1,25 @@
-import { LanguageToggleBar } from '@/components/i18n/LanguageToggle';
+import {
+  AuthBackground,
+  AuthHeader,
+  AuthSheet,
+  authFieldStyle,
+  authInputStyle,
+  authLabelStyle,
+  authTitleOnImage,
+  useKeyboardLift,
+} from '@/components/auth/AuthScaffold';
 import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/Colors';
-import { useT } from '@/i18n/useT';
 import { useLogin, useRegister } from '@/hooks/auth/useAuth';
+import { useT } from '@/i18n/useT';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { Eye, EyeOff, Lock, Mail, Phone, User } from 'lucide-react-native';
-import { ReactNode, useMemo, useState } from 'react';
+import { ReactNode, RefObject, useMemo, useRef, useState } from 'react';
 import { Control, Controller, FieldErrors, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { z } from 'zod';
 
@@ -26,28 +35,30 @@ type PasswordFieldProps = {
   label: string;
   placeholder: string;
   error?: string;
+  onFocus?: () => void;
+  inputRef?: RefObject<TextInput | null>;
+  /** Given, the return key advances to it instead of submitting. */
+  nextRef?: RefObject<TextInput | null>;
+  onSubmit?: () => void;
 };
 
-function PasswordField({ control, name, label, placeholder, error }: PasswordFieldProps) {
+function PasswordField({ control, name, label, placeholder, error, onFocus, inputRef, nextRef, onSubmit }: PasswordFieldProps) {
   // Local state — ensures only THIS field toggles, and we can use it as a remount key
   // to bypass Android's quirk of not updating secureTextEntry dynamically.
   const [shown, setShown] = useState(false);
 
   return (
     <View>
-      <Text style={{ fontSize: 13, fontWeight: '600', color: Colors.textSecondary, marginBottom: 8 }}>{label}</Text>
+      <Text style={authLabelStyle}>{label}</Text>
       <Controller
         control={control}
         name={name}
         render={({ field: { onChange, value, onBlur } }) => (
-          <View style={{
-            flexDirection: 'row', alignItems: 'center', gap: 12,
-            backgroundColor: Colors.surface, borderRadius: 12, padding: 14,
-            borderWidth: 1.5, borderColor: error ? Colors.danger : Colors.border,
-          }}>
+          <View style={{ ...authFieldStyle, borderColor: error ? Colors.danger : Colors.border }}>
             <Lock size={18} color={Colors.textDisabled} strokeWidth={1.5} />
             <TextInput
               key={shown ? `${name}-shown` : `${name}-hidden`}
+              ref={inputRef}
               value={(value as string) ?? ''}
               onChangeText={onChange}
               onBlur={onBlur}
@@ -56,7 +67,11 @@ function PasswordField({ control, name, label, placeholder, error }: PasswordFie
               secureTextEntry={!shown}
               autoCapitalize="none"
               autoCorrect={false}
-              style={{ flex: 1, fontSize: 14, color: Colors.textPrimary }}
+              onFocus={onFocus}
+              returnKeyType={nextRef ? 'next' : 'done'}
+              submitBehavior={nextRef ? 'submit' : 'blurAndSubmit'}
+              onSubmitEditing={() => (nextRef ? nextRef.current?.focus() : onSubmit?.())}
+              style={authInputStyle}
             />
             <Pressable onPress={() => setShown((s) => !s)} hitSlop={12}>
               {shown
@@ -79,23 +94,25 @@ type TextFieldProps = {
   icon: ReactNode;
   error?: string;
   keyboardType?: any;
+  onFocus?: () => void;
+  inputRef?: RefObject<TextInput | null>;
+  /** Given, the return key advances to it instead of submitting. */
+  nextRef?: RefObject<TextInput | null>;
+  onSubmit?: () => void;
 };
 
-function TextField({ control, name, label, placeholder, icon, error, keyboardType }: TextFieldProps) {
+function TextField({ control, name, label, placeholder, icon, error, keyboardType, onFocus, inputRef, nextRef, onSubmit }: TextFieldProps) {
   return (
     <View>
-      <Text style={{ fontSize: 13, fontWeight: '600', color: Colors.textSecondary, marginBottom: 8 }}>{label}</Text>
+      <Text style={authLabelStyle}>{label}</Text>
       <Controller
         control={control}
         name={name}
         render={({ field: { onChange, value, onBlur } }) => (
-          <View style={{
-            flexDirection: 'row', alignItems: 'center', gap: 12,
-            backgroundColor: Colors.surface, borderRadius: 12, padding: 14,
-            borderWidth: 1.5, borderColor: error ? Colors.danger : Colors.border,
-          }}>
+          <View style={{ ...authFieldStyle, borderColor: error ? Colors.danger : Colors.border }}>
             {icon}
             <TextInput
+              ref={inputRef}
               value={(value as string) ?? ''}
               onChangeText={onChange}
               onBlur={onBlur}
@@ -103,7 +120,11 @@ function TextField({ control, name, label, placeholder, icon, error, keyboardTyp
               placeholderTextColor={Colors.textDisabled}
               keyboardType={keyboardType}
               autoCapitalize={keyboardType === 'email-address' ? 'none' : 'words'}
-              style={{ flex: 1, fontSize: 14, color: Colors.textPrimary }}
+              onFocus={onFocus}
+              returnKeyType={nextRef ? 'next' : 'done'}
+              submitBehavior={nextRef ? 'submit' : 'blurAndSubmit'}
+              onSubmitEditing={() => (nextRef ? nextRef.current?.focus() : onSubmit?.())}
+              style={authInputStyle}
             />
           </View>
         )}
@@ -115,8 +136,21 @@ function TextField({ control, name, label, placeholder, icon, error, keyboardTyp
 
 export default function RegisterScreen() {
   const t = useT();
+  const insets = useSafeAreaInsets();
   const { mutateAsync: register, isPending: registering } = useRegister();
   const { mutateAsync: login, isPending: loggingIn } = useLogin();
+  const { scrollProps, fieldProps } = useKeyboardLift();
+  const fields = {
+    name: fieldProps('name'),
+    phone: fieldProps('phone'),
+    email: fieldProps('email'),
+    password: fieldProps('password'),
+    confirmPassword: fieldProps('confirmPassword'),
+  };
+  const phoneRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const confirmRef = useRef<TextInput>(null);
 
   const registerSchema = useMemo(() =>
     z.object({
@@ -156,83 +190,113 @@ export default function RegisterScreen() {
   const isPending = registering || loggingIn;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
-      <LanguageToggleBar />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <Animated.View entering={FadeInDown.springify()} style={{ marginBottom: 28 }}>
-            <Text style={{ fontSize: 26, fontWeight: '800', color: Colors.textPrimary }}>{t('auth.registerTitle')}</Text>
-            <Text style={{ fontSize: 14, color: Colors.textSecondary, marginTop: 4 }}>{t('auth.registerSubtitle')}</Text>
-          </Animated.View>
+    <AuthBackground>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        <AuthHeader fallback="/(auth)/welcome" />
 
-          <View style={{ gap: 14 }}>
-            <Animated.View entering={FadeInDown.delay(60).springify()}>
-              <TextField
-                control={control as any}
-                name="name"
-                label={t('auth.labelName')}
-                placeholder={t('auth.placeholderName')}
-                icon={<User size={18} color={Colors.textDisabled} strokeWidth={1.5} />}
-                error={errs.name?.message}
-              />
-            </Animated.View>
+        <Animated.Text
+          entering={FadeInDown.springify()}
+          style={{ ...authTitleOnImage, paddingHorizontal: 24, marginTop: 18, marginBottom: 22 }}
+        >
+          {t('auth.registerTitle')}
+        </Animated.Text>
 
-            <Animated.View entering={FadeInDown.delay(120).springify()}>
-              <TextField
-                control={control as any}
-                name="phone"
-                label={t('auth.labelPhone')}
-                placeholder={t('auth.placeholderPhone')}
-                icon={<Phone size={18} color={Colors.textDisabled} strokeWidth={1.5} />}
-                keyboardType="phone-pad"
-                error={errs.phone?.message}
-              />
-            </Animated.View>
+        <AuthSheet>
+          <ScrollView
+            {...scrollProps}
+            contentContainerStyle={{ padding: 24, paddingTop: 28, paddingBottom: 24 + insets.bottom }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="none"
+            automaticallyAdjustKeyboardInsets
+            showsVerticalScrollIndicator={false}
+          >
+              {/* Field wrappers are direct children of the scroll content so their
+                  onLayout y lands in content coordinates — see useKeyboardLift. */}
+              <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginBottom: 24 }}>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: Colors.textPrimary }}>{t('auth.registerSubtitle')}</Text>
+              </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(180).springify()}>
-              <TextField
-                control={control as any}
-                name="email"
-                label={t('auth.labelEmail')}
-                placeholder={t('auth.placeholderEmail')}
-                icon={<Mail size={18} color={Colors.textDisabled} strokeWidth={1.5} />}
-                keyboardType="email-address"
-                error={errs.email?.message}
-              />
-            </Animated.View>
+              <Animated.View entering={FadeInDown.delay(120).springify()} style={{ marginBottom: 14 }} onLayout={fields.name.onLayout}>
+                <TextField
+                  control={control as any}
+                  name="name"
+                  label={t('auth.labelName')}
+                  placeholder={t('auth.placeholderName')}
+                  icon={<User size={18} color={Colors.textDisabled} strokeWidth={1.5} />}
+                  error={errs.name?.message}
+                  onFocus={fields.name.onFocus}
+                  nextRef={phoneRef}
+                />
+              </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(240).springify()}>
-              <PasswordField
-                control={control as any}
-                name="password"
-                label={t('auth.labelPassword')}
-                placeholder={t('auth.placeholderPassword')}
-                error={errs.password?.message}
-              />
-            </Animated.View>
+              <Animated.View entering={FadeInDown.delay(160).springify()} style={{ marginBottom: 14 }} onLayout={fields.phone.onLayout}>
+                <TextField
+                  control={control as any}
+                  name="phone"
+                  label={t('auth.labelPhone')}
+                  placeholder={t('auth.placeholderPhone')}
+                  icon={<Phone size={18} color={Colors.textDisabled} strokeWidth={1.5} />}
+                  keyboardType="phone-pad"
+                  error={errs.phone?.message}
+                  onFocus={fields.phone.onFocus}
+                  inputRef={phoneRef}
+                  nextRef={emailRef}
+                />
+              </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(300).springify()}>
-              <PasswordField
-                control={control as any}
-                name="confirmPassword"
-                label={t('auth.labelConfirmPw')}
-                placeholder={t('auth.placeholderPassword')}
-                error={errs.confirmPassword?.message as string | undefined}
-              />
-            </Animated.View>
-          </View>
+              <Animated.View entering={FadeInDown.delay(200).springify()} style={{ marginBottom: 14 }} onLayout={fields.email.onLayout}>
+                <TextField
+                  control={control as any}
+                  name="email"
+                  label={t('auth.labelEmail')}
+                  placeholder={t('auth.placeholderEmail')}
+                  icon={<Mail size={18} color={Colors.textDisabled} strokeWidth={1.5} />}
+                  keyboardType="email-address"
+                  error={errs.email?.message}
+                  onFocus={fields.email.onFocus}
+                  inputRef={emailRef}
+                  nextRef={passwordRef}
+                />
+              </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(400).springify()} style={{ gap: 14, marginTop: 24 }}>
-            <Button title={t('auth.registerSubmit')} onPress={handleSubmit(onSubmit)} loading={isPending} />
-            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
-              <Text style={{ fontSize: 14, color: Colors.textSecondary }}>{t('auth.hasAccount')}</Text>
-              <Pressable onPress={() => router.push('/(auth)/login')}>
-                <Text style={{ fontSize: 14, color: Colors.primary, fontWeight: '700' }}>{t('auth.signIn')}</Text>
-              </Pressable>
-            </View>
-          </Animated.View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+              <Animated.View entering={FadeInDown.delay(240).springify()} style={{ marginBottom: 14 }} onLayout={fields.password.onLayout}>
+                <PasswordField
+                  control={control as any}
+                  name="password"
+                  label={t('auth.labelPassword')}
+                  placeholder={t('auth.placeholderPassword')}
+                  error={errs.password?.message}
+                  onFocus={fields.password.onFocus}
+                  inputRef={passwordRef}
+                  nextRef={confirmRef}
+                />
+              </Animated.View>
+
+              <Animated.View entering={FadeInDown.delay(280).springify()} onLayout={fields.confirmPassword.onLayout}>
+                <PasswordField
+                  control={control as any}
+                  name="confirmPassword"
+                  label={t('auth.labelConfirmPw')}
+                  placeholder={t('auth.placeholderPassword')}
+                  error={errs.confirmPassword?.message as string | undefined}
+                  onFocus={fields.confirmPassword.onFocus}
+                  inputRef={confirmRef}
+                  onSubmit={handleSubmit(onSubmit)}
+                />
+              </Animated.View>
+
+              <Animated.View entering={FadeInDown.delay(320).springify()} style={{ gap: 14, marginTop: 24 }}>
+                <Button title={t('auth.registerSubmit')} onPress={handleSubmit(onSubmit)} loading={isPending} />
+                <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
+                  <Text style={{ fontSize: 14, color: Colors.textSecondary }}>{t('auth.hasAccount')}</Text>
+                  <Pressable onPress={() => router.push('/(auth)/login')}>
+                    <Text style={{ fontSize: 14, color: Colors.primary, fontWeight: '700' }}>{t('auth.signIn')}</Text>
+                  </Pressable>
+                </View>
+              </Animated.View>
+          </ScrollView>
+        </AuthSheet>
+      </SafeAreaView>
+    </AuthBackground>
   );
 }

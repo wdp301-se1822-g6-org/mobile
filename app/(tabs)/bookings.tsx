@@ -1,18 +1,15 @@
 import { OrderCard } from '@/components/booking/OrderCard';
-import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Colors } from '@/constants/Colors';
-import { useT } from '@/i18n/useT';
 import { useOrders } from '@/hooks/booking/useBooking';
+import { useLocale, useT } from '@/i18n/useT';
 import { Order, OrderStatus } from '@/types/booking';
 import { router } from 'expo-router';
-import { CalendarCheck, ChevronRight, Clock, Plus, Sparkles, Waves } from 'lucide-react-native';
+import { CalendarCheck, Plus, Waves } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, SectionList, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const UPCOMING_STATUSES: OrderStatus[] = ['pending', 'confirmed', 'in_progress'];
 
 const FILTERS: { value: OrderStatus | 'all'; labelKey: string }[] = [
   { value: 'all',         labelKey: 'bookings.filterAll' },
@@ -23,92 +20,79 @@ const FILTERS: { value: OrderStatus | 'all'; labelKey: string }[] = [
   { value: 'cancelled',   labelKey: 'bookings.filterCancelled' },
 ];
 
-function formatCountdown(target: Date, t: ReturnType<typeof useT>): string {
-  const diffMs = target.getTime() - Date.now();
-  if (diffMs <= 0) return t('bookings.now');
-  const totalMin = Math.floor(diffMs / 60000);
-  const days = Math.floor(totalMin / (60 * 24));
-  const hours = Math.floor((totalMin - days * 24 * 60) / 60);
-  const mins = totalMin - days * 24 * 60 - hours * 60;
-  if (days > 0) return `${t('bookings.countdown')} ${days}${t('bookings.day')} ${hours}${t('bookings.hour')}`;
-  if (hours > 0) return `${t('bookings.countdown')} ${hours}${t('bookings.hour')} ${mins}${t('bookings.min')}`;
-  return `${t('bookings.countdown')} ${mins}${t('bookings.min')}`;
+type DaySection = { key: string; day: number; past: boolean; data: Order[] };
+
+const DAY_MS = 86400000;
+
+function startOfDay(value: string | number | Date): number {
+  const d = new Date(value);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
 }
 
-function NextBookingHero({ order }: { order: Order }) {
+/** One section per calendar day: future days ascending, then past days descending. */
+function groupByDay(orders: Order[]): DaySection[] {
+  const today = startOfDay(Date.now());
+  const byDay = new Map<number, Order[]>();
+
+  for (const o of orders) {
+    const day = startOfDay(o.scheduledAt);
+    const bucket = byDay.get(day);
+    if (bucket) bucket.push(o);
+    else byDay.set(day, [o]);
+  }
+
+  const upcoming: DaySection[] = [];
+  const past: DaySection[] = [];
+
+  for (const [day, list] of byDay) {
+    const isPast = day < today;
+    list.sort((a, b) => {
+      const at = new Date(a.scheduledAt).getTime();
+      const bt = new Date(b.scheduledAt).getTime();
+      return isPast ? bt - at : at - bt;
+    });
+    (isPast ? past : upcoming).push({ key: String(day), day, past: isPast, data: list });
+  }
+
+  upcoming.sort((a, b) => a.day - b.day);
+  past.sort((a, b) => b.day - a.day);
+  return [...upcoming, ...past];
+}
+
+function useDayLabel() {
   const t = useT();
-  const date = new Date(order.scheduledAt);
-  const dateLabel = date.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: '2-digit' });
-  const timeLabel = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const locale = useLocale();
+  const tag = locale === 'vi' ? 'vi-VN' : 'en-US';
 
-  return (
-    <Pressable
-      onPress={() => router.push({ pathname: '/booking/[id]', params: { id: order.id } })}
-      style={{
-        backgroundColor: Colors.primary,
-        borderRadius: 22,
-        padding: 18,
-        overflow: 'hidden',
-        shadowColor: Colors.primary,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.25,
-        shadowRadius: 10,
-        elevation: 5,
-      }}
-    >
-      {/* Decorative shapes */}
-      <View style={{ position: 'absolute', top: -25, right: -25, width: 110, height: 110, borderRadius: 55, backgroundColor: 'rgba(255,255,255,0.10)' }} />
-      <View style={{ position: 'absolute', bottom: -35, left: -10, width: 90, height: 90, borderRadius: 45, backgroundColor: 'rgba(255,255,255,0.06)' }} />
+  return (day: number): { title: string; sub: string } => {
+    const date = new Date(day);
+    const sub = date.toLocaleDateString(tag, { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const offset = Math.round((day - startOfDay(Date.now())) / DAY_MS);
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-        <Sparkles size={12} color="rgba(255,255,255,0.9)" strokeWidth={2} />
-        <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>
-          {t('bookings.upcoming').toUpperCase()}
-        </Text>
-      </View>
-
-      <Text style={{ color: Colors.white, fontSize: 18, fontWeight: '800', marginTop: 4 }} numberOfLines={1}>
-        {order.serviceName}
-      </Text>
-      <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 4 }} numberOfLines={1}>
-        {order.licensePlate}{order.vehicleTypeName ? ` · ${order.vehicleTypeName}` : ''}
-      </Text>
-
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, gap: 12 }}>
-        <View style={{
-          backgroundColor: 'rgba(255,255,255,0.18)',
-          paddingHorizontal: 10, paddingVertical: 6,
-          borderRadius: 10,
-          flexDirection: 'row', alignItems: 'center', gap: 6,
-        }}>
-          <Clock size={13} color={Colors.white} strokeWidth={2} />
-          <Text style={{ color: Colors.white, fontSize: 12, fontWeight: '700' }}>
-            {dateLabel} {t('bookings.atTime')} {timeLabel}
-          </Text>
-        </View>
-      </View>
-
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)' }}>
-        <Text style={{ color: Colors.white, fontSize: 13, fontWeight: '700' }}>
-          {formatCountdown(date, t)}
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Text style={{ color: Colors.white, fontSize: 12, fontWeight: '700' }}>{t('common.detail')}</Text>
-          <ChevronRight size={14} color={Colors.white} strokeWidth={2.5} />
-        </View>
-      </View>
-    </Pressable>
-  );
+    if (offset === 0) return { title: t('bookings.today'), sub };
+    if (offset === 1) return { title: t('bookings.tomorrow'), sub };
+    if (offset === -1) return { title: t('bookings.yesterday'), sub };
+    return { title: date.toLocaleDateString(tag, { weekday: 'long' }), sub };
+  };
 }
 
-function SectionHeader({ title, count }: { title: string; count: number }) {
+function DayHeader({ title, sub, count, past }: { title: string; sub: string; count: number; past: boolean }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 12 }}>
-      <Text style={{ fontSize: 14, fontWeight: '800', color: Colors.textPrimary }}>{title}</Text>
+    <View style={{
+      backgroundColor: Colors.background,
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      paddingTop: 16, paddingBottom: 8,
+    }}>
+      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: past ? Colors.textDisabled : Colors.primary }} />
+      <Text style={{ fontSize: 14, fontWeight: '800', color: past ? Colors.textSecondary : Colors.textPrimary }}>
+        {title}
+      </Text>
+      <Text style={{ fontSize: 12, color: Colors.textSecondary }}>{sub}</Text>
+      <View style={{ flex: 1, height: 1, backgroundColor: Colors.border, marginHorizontal: 2 }} />
       <View style={{ backgroundColor: Colors.border, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
         <Text style={{ fontSize: 11, fontWeight: '700', color: Colors.textSecondary }}>{count}</Text>
       </View>
-      <View style={{ flex: 1, height: 1, backgroundColor: Colors.border, marginLeft: 4 }} />
     </View>
   );
 }
@@ -167,6 +151,7 @@ function EmptyHero() {
 
 export default function BookingsScreen() {
   const t = useT();
+  const dayLabel = useDayLabel();
   const { data: orders, isLoading } = useOrders();
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all');
 
@@ -176,17 +161,7 @@ export default function BookingsScreen() {
     return list.filter((o) => o.status === filter);
   }, [orders, filter]);
 
-  const grouped = useMemo(() => {
-    const upcoming: Order[] = [];
-    const history: Order[] = [];
-    for (const o of filtered) {
-      if (UPCOMING_STATUSES.includes(o.status)) upcoming.push(o);
-      else history.push(o);
-    }
-    upcoming.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
-    history.sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
-    return { upcoming, history, nextOne: upcoming[0] };
-  }, [filtered]);
+  const sections = useMemo(() => groupByDay(filtered), [filtered]);
 
   const hasAny = (orders?.length ?? 0) > 0;
 
@@ -200,7 +175,7 @@ export default function BookingsScreen() {
           </Text>
           {hasAny ? (
             <Text style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 2 }}>
-              {orders?.length} {t('bookings.filterAll').toLowerCase()}
+              {t('bookings.count', { n: orders?.length ?? 0 })}
             </Text>
           ) : null}
         </View>
@@ -251,57 +226,31 @@ export default function BookingsScreen() {
       ) : !hasAny ? (
         <EmptyHero />
       ) : (
-        <FlatList
-          data={[]}
-          renderItem={null as any}
-          keyExtractor={() => ''}
+        <SectionList
+          sections={sections}
+          keyExtractor={(o) => o.id}
+          stickySectionHeadersEnabled
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
-          ListHeaderComponent={
-            <View>
-              {/* Hero card for next booking */}
-              {grouped.nextOne ? (
-                <Animated.View entering={FadeInDown.springify()} style={{ marginBottom: 8 }}>
-                  <NextBookingHero order={grouped.nextOne} />
-                </Animated.View>
-              ) : null}
-
-              {/* Upcoming section */}
-              {grouped.upcoming.length > 1 && (
-                <>
-                  <SectionHeader title={t('bookings.upcoming')} count={grouped.upcoming.length - 1} />
-                  <View style={{ gap: 10 }}>
-                    {grouped.upcoming.slice(1).map((o, i) => (
-                      <Animated.View key={o.id} entering={FadeInDown.delay(i * 50).springify()}>
-                        <OrderCard order={o} onPress={() => router.push({ pathname: '/booking/[id]', params: { id: o.id } })} />
-                      </Animated.View>
-                    ))}
-                  </View>
-                </>
-              )}
-
-              {/* History section */}
-              {grouped.history.length > 0 && (
-                <>
-                  <SectionHeader title={t('bookings.history')} count={grouped.history.length} />
-                  <View style={{ gap: 10 }}>
-                    {grouped.history.map((o, i) => (
-                      <Animated.View key={o.id} entering={FadeInDown.delay(i * 50).springify()}>
-                        <OrderCard order={o} onPress={() => router.push({ pathname: '/booking/[id]', params: { id: o.id } })} />
-                      </Animated.View>
-                    ))}
-                  </View>
-                </>
-              )}
-
-              {/* If filtering returned no results */}
-              {filtered.length === 0 && (
-                <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-                  <CalendarCheck size={48} color={Colors.textDisabled} strokeWidth={1.5} />
-                  <Text style={{ fontSize: 14, color: Colors.textSecondary, marginTop: 12 }}>
-                    {t('bookings.empty')}
-                  </Text>
-                </View>
-              )}
+          renderSectionHeader={({ section }) => {
+            const { title, sub } = dayLabel(section.day);
+            return <DayHeader title={title} sub={sub} count={section.data.length} past={section.past} />;
+          }}
+          renderItem={({ item, index }) => (
+            <Animated.View entering={FadeInDown.delay(Math.min(index, 6) * 50).springify()} style={{ marginBottom: 10 }}>
+              <OrderCard
+                order={item}
+                showDate={false}
+                onPress={() => router.push({ pathname: '/booking/[id]', params: { id: item.id } })}
+              />
+            </Animated.View>
+          )}
+          ListEmptyComponent={
+            <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+              <CalendarCheck size={48} color={Colors.textDisabled} strokeWidth={1.5} />
+              <Text style={{ fontSize: 14, color: Colors.textSecondary, marginTop: 12 }}>
+                {t('bookings.empty')}
+              </Text>
             </View>
           }
         />

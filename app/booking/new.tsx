@@ -15,6 +15,7 @@ import { ServiceType } from '@/types/service';
 import { Vehicle } from '@/types/vehicle';
 import { Voucher } from '@/types/voucher';
 import { formatPrice } from '@/utils/formatters';
+import { resolveVehiclePricing } from '@/utils/servicePricing';
 import { vehicleIcon } from '@/utils/vehicleIcon';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -30,7 +31,7 @@ import {
   StarPlus,
   Tag,
 } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeInDown, SlideInRight } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -39,20 +40,6 @@ import Toast from 'react-native-toast-message';
 type Step = 'service' | 'vehicle' | 'slot' | 'confirm';
 
 const STEPS: Step[] = ['vehicle', 'service', 'slot', 'confirm'];
-
-// Resolve the price/duration of a service for a given vehicle type.
-// Returns null when the service has no active pricing for that vehicle type, so it
-// gets filtered out — a service with empty `vehiclePricing` is never offered.
-function resolvePricing(
-  s: ServiceType,
-  vehicleTypeId?: string,
-): { price: number; duration: number } | null {
-  if (!vehicleTypeId) return null; // a vehicle must be selected before pricing can be resolved
-  const vp = s.vehiclePricing?.find(
-    (v) => v.vehicleTypeId === vehicleTypeId && v.isActive,
-  );
-  return vp ? { price: vp.price, duration: vp.estimatedMinutes } : null;
-}
 
 function StepIndicator({
   current,
@@ -130,7 +117,10 @@ function StepIndicator({
 
 export default function NewBookingScreen() {
   const t = useT();
-  const { serviceId } = useLocalSearchParams<{ serviceId?: string }>();
+  const { serviceId, vehicleId } = useLocalSearchParams<{
+    serviceId?: string;
+    vehicleId?: string;
+  }>();
 
   const [step, setStep] = useState<Step>('vehicle');
   const [selectedService, setSelectedService] = useState<ServiceType | null>(
@@ -141,6 +131,7 @@ export default function NewBookingScreen() {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [previewFailed, setPreviewFailed] = useState(false);
 
   const { data: services, isLoading: loadingServices } = useServiceTypes();
   const { data: vehicles, isLoading: loadingVehicles } = useVehicles();
@@ -153,20 +144,49 @@ export default function NewBookingScreen() {
     reset: resetPreview,
   } = usePreviewOrder();
 
-  const service =
-    selectedService ?? services?.find((s) => s.id === serviceId) ?? null;
+  const service = selectedService;
 
   // Only show packages offered for the selected vehicle's type, priced for that type.
   const availableServices = useMemo(
     () =>
       (services ?? []).filter(
-        (s) => s.isActive && resolvePricing(s, selectedVehicle?.vehicleTypeId),
+        (s) =>
+          s.isActive &&
+          resolveVehiclePricing(s, selectedVehicle?.vehicleTypeId),
       ),
     [services, selectedVehicle?.vehicleTypeId],
   );
   const selectedPricing = service
-    ? resolvePricing(service, selectedVehicle?.vehicleTypeId)
+    ? resolveVehiclePricing(service, selectedVehicle?.vehicleTypeId)
     : null;
+
+  // The home screen already lists packages per vehicle, so it hands us both the car and
+  // the package: prefill them and open straight at the time step. Only when several cars
+  // share that vehicle type do we still stop at the vehicle step to ask which one.
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current || !services || !vehicles) return;
+    prefilled.current = true;
+
+    const preService = serviceId
+      ? services.find((s) => s.id === serviceId)
+      : undefined;
+    if (preService) setSelectedService(preService);
+
+    const preVehicle = vehicleId
+      ? vehicles.find((v) => v.id === vehicleId)
+      : undefined;
+    if (!preVehicle) return;
+    setSelectedVehicle(preVehicle);
+
+    const sameType = vehicles.filter(
+      (v) => v.vehicleTypeId === preVehicle.vehicleTypeId,
+    );
+    const offered =
+      preService &&
+      resolveVehiclePricing(preService, preVehicle.vehicleTypeId);
+    if (offered && sameType.length === 1) setStep('slot');
+  }, [services, vehicles, serviceId, vehicleId]);
 
   // The next 7 days the customer can book, each as a local calendar day.
   const upcomingDays = useMemo(() => {
@@ -202,22 +222,27 @@ export default function NewBookingScreen() {
       : null,
   );
 
-  useEffect(() => {
-    if (step !== 'confirm' || !service || !selectedVehicle || !selectedSlot)
-      return;
+  // The API is the only source of truth for the total: it is what applies the golden-hour,
+  // tier and voucher discounts. A failure must surface, never quietly fall back to the
+  // undiscounted price.
+  const runPreview = useCallback(() => {
+    if (!service || !selectedVehicle || !selectedSlot) return;
+    setPreviewFailed(false);
     previewOrder({
       serviceTypeId: service.id,
       vehicleTypeId: selectedVehicle.vehicleTypeId,
       scheduledAt: selectedSlot,
       voucherId: selectedVoucher?.id,
-    }).catch(() => resetPreview());
-  }, [
-    step,
-    selectedVoucher?.id,
-    service?.id,
-    selectedVehicle?.id,
-    selectedSlot,
-  ]);
+    }).catch(() => {
+      resetPreview();
+      setPreviewFailed(true);
+    });
+  }, [service?.id, selectedVehicle?.id, selectedSlot, selectedVoucher?.id]);
+
+  useEffect(() => {
+    if (step !== 'confirm') return;
+    runPreview();
+  }, [step, runPreview]);
 
   // A step can be jumped to only once its prerequisites are filled in, so the
   // tappable indicators never land the user on an incomplete screen.
@@ -274,7 +299,8 @@ export default function NewBookingScreen() {
     }
   };
 
-  const finalPrice = preview?.finalPrice ?? selectedPricing?.price ?? 0;
+  // The base price is known locally, so it can be shown while the preview is in flight.
+  // The total cannot: without a preview it is unknown, not "the base price".
   const basePrice = preview?.basePrice ?? selectedPricing?.price ?? 0;
   const discountAmount = preview?.discountAmount ?? 0;
 
@@ -338,7 +364,7 @@ export default function NewBookingScreen() {
               </Text>
             ) : (
               availableServices.map((s, i) => {
-                const pricing = resolvePricing(
+                const pricing = resolveVehiclePricing(
                   s,
                   selectedVehicle?.vehicleTypeId,
                 )!;
@@ -458,7 +484,19 @@ export default function NewBookingScreen() {
                     <Pressable
                       onPress={() => {
                         setSelectedVehicle(v);
-                        goNext();
+                        setSelectedSlot(null); // slots depend on the vehicle type
+                        // Keep a package that is offered for this car's type — that is the
+                        // one picked on the home screen — and go straight to the time step.
+                        // Otherwise it cannot be priced here, so it has to be picked again.
+                        if (
+                          service &&
+                          resolveVehiclePricing(service, v.vehicleTypeId)
+                        ) {
+                          setStep('slot');
+                        } else {
+                          setSelectedService(null);
+                          setStep('service');
+                        }
                       }}
                       style={{
                         backgroundColor: Colors.surface,
@@ -1224,9 +1262,41 @@ export default function NewBookingScreen() {
                     color: Colors.primary,
                   }}
                 >
-                  {previewing ? '...' : formatPrice(finalPrice)}
+                  {previewing
+                    ? '...'
+                    : preview
+                      ? formatPrice(preview.finalPrice)
+                      : '—'}
                 </Text>
               </View>
+
+              {previewFailed && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 10,
+                    marginTop: 4,
+                  }}
+                >
+                  <Text
+                    style={{ flex: 1, fontSize: 12, color: Colors.danger }}
+                  >
+                    {t('bookingNew.previewFailed')}
+                  </Text>
+                  <Pressable onPress={runPreview} hitSlop={8}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '700',
+                        color: Colors.primary,
+                      }}
+                    >
+                      {t('bookingNew.previewRetry')}
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
 
             <Button
