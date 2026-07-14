@@ -5,6 +5,7 @@ import { Colors } from '@/constants/Colors';
 import { useT } from '@/i18n/useT';
 import { useCancelOrder, useOrder } from '@/hooks/booking/useBooking';
 import { useOrderFeedback } from '@/hooks/feedback/useFeedback';
+import { useVehicles } from '@/hooks/vehicle/useVehicle';
 import { OrderStatus } from '@/types/booking';
 import { formatPrice } from '@/utils/formatters';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -42,7 +43,7 @@ function ProgressTracker({ status }: { status: OrderStatus }) {
           const Icon = step.icon;
           return (
             <View key={step.key} style={{ flex: 1, alignItems: 'center' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '100%', height: 38 }}>
                 {i > 0 && (
                   <View style={{
                     position: 'absolute', left: 0, right: '50%',
@@ -97,6 +98,7 @@ export default function BookingDetailScreen() {
   const t = useT();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: order, isLoading, refetch } = useOrder(id);
+  const { data: vehicles = [] } = useVehicles();
   const { mutateAsync: cancelOrder, isPending: cancelling } = useCancelOrder();
   const { data: feedbackData } = useOrderFeedback(id);
   const feedback = feedbackData?.feedback ?? null;
@@ -142,6 +144,10 @@ export default function BookingDetailScreen() {
     order.status !== 'cancelled';
 
   const date = new Date(order.scheduledAt);
+  const orderVehicle = vehicles.find((vehicle) => vehicle.id === order.vehicleId);
+  const licensePlate = order.licensePlate?.trim() || orderVehicle?.licensePlate?.trim() || t('common.noData');
+  const vehicleTypeName = order.vehicleTypeName?.trim() || orderVehicle?.vehicleTypeName?.trim();
+  const vehicleLabel = vehicleTypeName ? `${licensePlate} · ${vehicleTypeName}` : licensePlate;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -197,7 +203,7 @@ export default function BookingDetailScreen() {
           <Text style={{ fontSize: 16, fontWeight: '700', color: Colors.textPrimary }}>{order.serviceName}</Text>
 
           {[
-            { icon: <Car size={16} color={Colors.textSecondary} strokeWidth={1.5} />,        label: t('bookingDetail.vehicle'), value: order.vehicleTypeName ? `${order.licensePlate} · ${order.vehicleTypeName}` : order.licensePlate },
+            { icon: <Car size={16} color={Colors.textSecondary} strokeWidth={1.5} />,        label: t('bookingDetail.vehicle'), value: vehicleLabel },
             { icon: <Calendar size={16} color={Colors.textSecondary} strokeWidth={1.5} />,   label: t('bookingDetail.date'),    value: date.toLocaleDateString(undefined, { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) },
             { icon: <Clock size={16} color={Colors.textSecondary} strokeWidth={1.5} />,      label: t('bookingDetail.time'),    value: `${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}${order.estimatedMinutes ? ` (~${order.estimatedMinutes} ${t('common.minutes')})` : ''}` },
             { icon: <CreditCard size={16} color={Colors.textSecondary} strokeWidth={1.5} />, label: t('bookingDetail.payment'), value: paymentLabel(t, order.paymentMethod, order.paymentStatus) },

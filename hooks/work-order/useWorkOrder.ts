@@ -25,6 +25,15 @@ export function useMyWorkOrder(id: string) {
   });
 }
 
+export function useOrderWorkOrder(orderId: string) {
+  return useQuery({
+    queryKey: [...WORK_ORDERS_KEY, 'order', orderId],
+    queryFn: () => workOrderService.getOrderWorkOrder(orderId),
+    enabled: !!orderId,
+    retry: false,
+  });
+}
+
 export function useStartWorkOrder() {
   const qc = useQueryClient();
   return useMutation({

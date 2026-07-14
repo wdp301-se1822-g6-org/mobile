@@ -22,6 +22,7 @@ export const API = {
     orderSlots: '/me/orders/available-slots',
     orderReschedule: (id: string) => `/me/orders/${id}/reschedule`,
     orderCancel: (id: string) => `/me/orders/${id}/cancel`,
+    orderWorkOrder: (orderId: string) => `/me/orders/${orderId}/work-order`,
     feedback: '/me/feedback',
     feedbackByOrder: (orderId: string) => `/me/feedback/${orderId}`,
     workOrders: '/me/work-orders',

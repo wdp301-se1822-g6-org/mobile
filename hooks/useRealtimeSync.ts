@@ -1,3 +1,4 @@
+import { LOYALTY_KEY, LOYALTY_TRANSACTIONS_KEY } from '@/hooks/loyalty/useLoyalty';
 import { connectSocket, disconnectSocket } from '@/services/socket';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQueryClient } from '@tanstack/react-query';
@@ -35,8 +36,10 @@ export function useRealtimeSync() {
       queryClient.invalidateQueries({ queryKey: ['cashier-work-order-by-order'] });
       // customer
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: LOYALTY_KEY });
+      queryClient.invalidateQueries({ queryKey: LOYALTY_TRANSACTIONS_KEY });
       if (payload.orderId) {
-        queryClient.invalidateQueries({ queryKey: ['order', payload.orderId] });
+        queryClient.invalidateQueries({ queryKey: ['orders', payload.orderId] });
       }
     };
 
