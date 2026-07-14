@@ -1,15 +1,14 @@
 import { Colors } from '@/constants/Colors';
-import { TierName } from '@/types/loyalty';
+import { normalizeTier, TierName } from '@/types/loyalty';
 import { useEffect } from 'react';
 import { Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 const TIER_COLORS: Record<TierName, string> = {
-  none: Colors.textDisabled,
+  basic: Colors.textDisabled,
   bronze: Colors.bronze,
   silver: Colors.silver,
   gold: Colors.gold,
-  platinum: Colors.platinum,
 };
 
 type Props = {
@@ -33,7 +32,7 @@ export function TierProgressBar({ currentPoints, minPoints, maxPoints, currentTi
     width: `${width.value * 100}%` as `${number}%`,
   }));
 
-  const color = TIER_COLORS[currentTier];
+  const color = TIER_COLORS[normalizeTier(currentTier)];
 
   return (
     <View>
