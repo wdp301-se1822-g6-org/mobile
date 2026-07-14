@@ -6,7 +6,7 @@ import { useOrder } from '@/hooks/booking/useBooking';
 import { useOrderFeedback, useSubmitFeedback } from '@/hooks/feedback/useFeedback';
 import { useOrderWorkOrder } from '@/hooks/work-order/useWorkOrder';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Camera, CheckCircle, Images, Sparkles, Star, X } from 'lucide-react-native';
+import { ArrowLeft, Camera, CheckCircle, Images, Star, X } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
@@ -97,18 +97,16 @@ export default function FeedbackScreen() {
   };
 
   const [rating, setRating] = useState(5);
-  const [washerRating, setWasherRating] = useState(5);
   const [comment, setComment] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [viewer, setViewer] = useState<{ title: string; photos: string[]; index: number } | null>(null);
 
   const existingFeedback = existing?.feedback ?? null;
-  const canRate = existing?.canRate ?? true;
+  const canRate = existing?.eligible ?? false;
 
   useEffect(() => {
     if (existingFeedback) {
       setRating(existingFeedback.rating);
-      setWasherRating(existingFeedback.washerRating ?? existingFeedback.rating);
       setComment(existingFeedback.comment ?? '');
     }
   }, [existingFeedback]);
@@ -118,18 +116,20 @@ export default function FeedbackScreen() {
   };
 
   const handleSubmit = async () => {
-    const fullComment = [tags.join(', '), comment.trim()].filter(Boolean).join(' · ');
+    const fullComment = [tags.join(', '), comment.trim()].filter(Boolean).join(' · ').slice(0, 1000);
     try {
       await submit({
         orderId,
         rating,
-        washerRating,
         comment: fullComment || undefined,
       });
       Toast.show({ type: 'success', text1: t('feedback.submitOk') });
       router.back();
-    } catch {
-      Toast.show({ type: 'error', text1: t('feedback.submitErr'), text2: existing?.reason ?? t('feedback.submitErrSub') });
+    } catch (error) {
+      const responseMessage = (error as { response?: { data?: { message?: string | string[] } } })
+        .response?.data?.message;
+      const detail = Array.isArray(responseMessage) ? responseMessage.join(', ') : responseMessage;
+      Toast.show({ type: 'error', text1: t('feedback.submitErr'), text2: detail || t('feedback.submitErrSub') });
     }
   };
 
@@ -224,20 +224,6 @@ export default function FeedbackScreen() {
             </Animated.View>
           </Animated.View>
 
-          <Animated.View
-            entering={FadeInDown.delay(140).springify()}
-            style={{
-              backgroundColor: Colors.surface, borderRadius: 16, padding: 18,
-              shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <Sparkles size={16} color={Colors.primary} strokeWidth={1.5} />
-              <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.textPrimary }}>{t('feedback.washerSection')}</Text>
-            </View>
-            <StarRow value={washerRating} onChange={setWasherRating} size={28} />
-          </Animated.View>
-
           <Animated.View entering={FadeInDown.delay(200).springify()}>
             <Text style={{ fontSize: 13, fontWeight: '600', color: Colors.textSecondary, marginBottom: 10 }}>
               {t('feedback.quickTags')}
@@ -275,6 +261,7 @@ export default function FeedbackScreen() {
               placeholderTextColor={Colors.textDisabled}
               multiline
               numberOfLines={4}
+              maxLength={1000}
               style={{
                 backgroundColor: Colors.surface, borderRadius: 12, padding: 14,
                 fontSize: 14, color: Colors.textPrimary,
@@ -284,9 +271,9 @@ export default function FeedbackScreen() {
             />
           </Animated.View>
 
-          {!canRate && !alreadySubmitted && existing?.reason ? (
+          {!canRate && !alreadySubmitted ? (
             <View style={{ backgroundColor: '#FEF3C7', borderRadius: 12, padding: 14 }}>
-              <Text style={{ fontSize: 13, color: '#92400E', textAlign: 'center' }}>{existing.reason}</Text>
+              <Text style={{ fontSize: 13, color: '#92400E', textAlign: 'center' }}>{t('feedback.notEligible')}</Text>
             </View>
           ) : null}
 
