@@ -14,7 +14,7 @@ import { useLogin, useRegister } from '@/hooks/auth/useAuth';
 import { useT } from '@/i18n/useT';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
-import { Eye, EyeOff, Lock, Mail, Phone, User } from 'lucide-react-native';
+import { Calendar, Eye, EyeOff, Lock, Mail, Phone, User } from 'lucide-react-native';
 import { ReactNode, RefObject, useMemo, useRef, useState } from 'react';
 import { Control, Controller, FieldErrors, useForm } from 'react-hook-form';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -134,6 +134,78 @@ function TextField({ control, name, label, placeholder, icon, error, keyboardTyp
   );
 }
 
+/** Progressively formats raw keystrokes into a DD/MM/YYYY mask. */
+function formatDob(raw: string): string {
+  const d = raw.replace(/\D/g, '').slice(0, 8);
+  let out = d.slice(0, 2);
+  if (d.length > 2) out += '/' + d.slice(2, 4);
+  if (d.length > 4) out += '/' + d.slice(4, 8);
+  return out;
+}
+
+/** True when `dd/mm/yyyy` is a real calendar date that isn't in the future. */
+function isValidDob(value: string): boolean {
+  const [dd, mm, yyyy] = value.split('/').map(Number);
+  const date = new Date(yyyy, mm - 1, dd);
+  return (
+    date.getFullYear() === yyyy &&
+    date.getMonth() === mm - 1 &&
+    date.getDate() === dd &&
+    date.getTime() <= Date.now()
+  );
+}
+
+/** Converts a validated `dd/mm/yyyy` string to an ISO 8601 UTC timestamp. */
+function dobToIso(value: string): string {
+  const [dd, mm, yyyy] = value.split('/').map(Number);
+  return new Date(Date.UTC(yyyy, mm - 1, dd)).toISOString();
+}
+
+type DateFieldProps = {
+  control: Control<any>;
+  name: string;
+  label: string;
+  placeholder: string;
+  error?: string;
+  onFocus?: () => void;
+  inputRef?: RefObject<TextInput | null>;
+  nextRef?: RefObject<TextInput | null>;
+  onSubmit?: () => void;
+};
+
+function DateField({ control, name, label, placeholder, error, onFocus, inputRef, nextRef, onSubmit }: DateFieldProps) {
+  return (
+    <View>
+      <Text style={authLabelStyle}>{label}</Text>
+      <Controller
+        control={control}
+        name={name}
+        render={({ field: { onChange, value, onBlur } }) => (
+          <View style={{ ...authFieldStyle, borderColor: error ? Colors.danger : Colors.border }}>
+            <Calendar size={18} color={Colors.textDisabled} strokeWidth={1.5} />
+            <TextInput
+              ref={inputRef}
+              value={(value as string) ?? ''}
+              onChangeText={(text) => onChange(formatDob(text))}
+              onBlur={onBlur}
+              placeholder={placeholder}
+              placeholderTextColor={Colors.textDisabled}
+              keyboardType="number-pad"
+              maxLength={10}
+              onFocus={onFocus}
+              returnKeyType={nextRef ? 'next' : 'done'}
+              submitBehavior={nextRef ? 'submit' : 'blurAndSubmit'}
+              onSubmitEditing={() => (nextRef ? nextRef.current?.focus() : onSubmit?.())}
+              style={authInputStyle}
+            />
+          </View>
+        )}
+      />
+      {error && <Text style={{ color: Colors.danger, fontSize: 12, marginTop: 4 }}>{error}</Text>}
+    </View>
+  );
+}
+
 export default function RegisterScreen() {
   const t = useT();
   const insets = useSafeAreaInsets();
@@ -143,11 +215,13 @@ export default function RegisterScreen() {
   const fields = {
     name: fieldProps('name'),
     phone: fieldProps('phone'),
+    dateOfBirth: fieldProps('dateOfBirth'),
     email: fieldProps('email'),
     password: fieldProps('password'),
     confirmPassword: fieldProps('confirmPassword'),
   };
   const phoneRef = useRef<TextInput>(null);
+  const dobRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
   const confirmRef = useRef<TextInput>(null);
@@ -156,6 +230,9 @@ export default function RegisterScreen() {
     z.object({
       name: z.string().min(2, t('auth.errNameMin')),
       phone: z.string().regex(/^(0|\+84)[3-9][0-9]{8}$/, t('auth.errPhoneInvalid')),
+      dateOfBirth: z.string()
+        .regex(/^\d{2}\/\d{2}\/\d{4}$/, t('auth.errDobInvalid'))
+        .refine(isValidDob, t('auth.errDobInvalid')),
       email: z.email(t('auth.errEmailInvalid')),
       password: z.string().min(8, t('auth.errPwMin')),
       confirmPassword: z.string(),
@@ -172,7 +249,7 @@ export default function RegisterScreen() {
 
   const onSubmit = async (data: RegisterInput) => {
     try {
-      await register({ name: data.name, phone: data.phone, email: data.email, password: data.password });
+      await register({ name: data.name, phone: data.phone, email: data.email, password: data.password, dateOfBirth: dobToIso(data.dateOfBirth) });
     } catch (err) {
       Toast.show({ type: 'error', text1: t('auth.registerErr'), text2: extractApiError(err) ?? t('auth.registerErrFallback') });
       return;
@@ -240,11 +317,24 @@ export default function RegisterScreen() {
                   error={errs.phone?.message}
                   onFocus={fields.phone.onFocus}
                   inputRef={phoneRef}
+                  nextRef={dobRef}
+                />
+              </Animated.View>
+
+              <Animated.View entering={FadeInDown.delay(200).springify()} style={{ marginBottom: 14 }} onLayout={fields.dateOfBirth.onLayout}>
+                <DateField
+                  control={control as any}
+                  name="dateOfBirth"
+                  label={t('auth.labelDob')}
+                  placeholder={t('auth.placeholderDob')}
+                  error={errs.dateOfBirth?.message}
+                  onFocus={fields.dateOfBirth.onFocus}
+                  inputRef={dobRef}
                   nextRef={emailRef}
                 />
               </Animated.View>
 
-              <Animated.View entering={FadeInDown.delay(200).springify()} style={{ marginBottom: 14 }} onLayout={fields.email.onLayout}>
+              <Animated.View entering={FadeInDown.delay(240).springify()} style={{ marginBottom: 14 }} onLayout={fields.email.onLayout}>
                 <TextField
                   control={control as any}
                   name="email"
@@ -259,7 +349,7 @@ export default function RegisterScreen() {
                 />
               </Animated.View>
 
-              <Animated.View entering={FadeInDown.delay(240).springify()} style={{ marginBottom: 14 }} onLayout={fields.password.onLayout}>
+              <Animated.View entering={FadeInDown.delay(280).springify()} style={{ marginBottom: 14 }} onLayout={fields.password.onLayout}>
                 <PasswordField
                   control={control as any}
                   name="password"
@@ -272,7 +362,7 @@ export default function RegisterScreen() {
                 />
               </Animated.View>
 
-              <Animated.View entering={FadeInDown.delay(280).springify()} onLayout={fields.confirmPassword.onLayout}>
+              <Animated.View entering={FadeInDown.delay(320).springify()} onLayout={fields.confirmPassword.onLayout}>
                 <PasswordField
                   control={control as any}
                   name="confirmPassword"
@@ -285,7 +375,7 @@ export default function RegisterScreen() {
                 />
               </Animated.View>
 
-              <Animated.View entering={FadeInDown.delay(320).springify()} style={{ gap: 14, marginTop: 24 }}>
+              <Animated.View entering={FadeInDown.delay(360).springify()} style={{ gap: 14, marginTop: 24 }}>
                 <Button title={t('auth.registerSubmit')} onPress={handleSubmit(onSubmit)} loading={isPending} />
                 <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
                   <Text style={{ fontSize: 14, color: Colors.textSecondary }}>{t('auth.hasAccount')}</Text>
