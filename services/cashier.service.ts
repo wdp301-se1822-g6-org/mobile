@@ -25,6 +25,9 @@ export type AdminOrder = {
   assignedWasherName?: string;
   workOrderStatus?: string;
   note?: string;
+  // Thời điểm khách đặt lịch. Dùng để xếp danh sách check-in theo LIFO
+  // (người đặt sau cùng lên đầu). Optional vì API admin có thể chưa trả về.
+  createdAt?: string;
 };
 
 export type PaginationMeta = {
