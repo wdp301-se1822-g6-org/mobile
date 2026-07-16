@@ -13,6 +13,7 @@ import { Vehicle } from '@/types/vehicle';
 import { formatPrice } from '@/utils/formatters';
 import { resolveVehiclePricing } from '@/utils/servicePricing';
 import { vehicleIcon } from '@/utils/vehicleIcon';
+import { localizedVehicleTypeName } from '@/utils/vehicleTypeLabel';
 import { router } from 'expo-router';
 import {
   Bot,
@@ -486,6 +487,8 @@ function VehicleTypeTabs({
   activeId?: string;
   onSelect: (id: string) => void;
 }) {
+  const t = useT();
+
   return (
     <ScrollView
       horizontal
@@ -524,7 +527,7 @@ function VehicleTypeTabs({
                 color: active ? Colors.primary : Colors.textSecondary,
               }}
             >
-              {ty.name}
+              {localizedVehicleTypeName(ty.name, t)}
             </Text>
           </Pressable>
         );
@@ -783,7 +786,9 @@ export default function HomeScreen() {
               }}
             >
               {activeType
-                ? t('home.pricesFor', { type: activeType.name })
+                ? t('home.pricesFor', {
+                    type: localizedVehicleTypeName(activeType.name, t),
+                  })
                 : t('home.servicesSub')}
             </Text>
           </View>
@@ -795,7 +800,9 @@ export default function HomeScreen() {
               icon={Droplets}
               title={
                 activeType
-                  ? t('home.noServicesForVehicle', { type: activeType.name })
+                  ? t('home.noServicesForVehicle', {
+                      type: localizedVehicleTypeName(activeType.name, t),
+                    })
                   : t('home.noServices')
               }
               description={t('home.noServicesSub')}

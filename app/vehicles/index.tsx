@@ -4,6 +4,7 @@ import { useT } from '@/i18n/useT';
 import { useDeleteVehicle, useSetDefaultVehicle, useVehicles } from '@/hooks/vehicle/useVehicle';
 import { Vehicle } from '@/types/vehicle';
 import { vehicleIcon } from '@/utils/vehicleIcon';
+import { localizedVehicleTypeName } from '@/utils/vehicleTypeLabel';
 import { router } from 'expo-router';
 import { ArrowLeft, Car, MoreVertical, Plus, Star, Trash2 } from 'lucide-react-native';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
@@ -72,7 +73,7 @@ function VehicleRow({
       {/* Body */}
       <View style={{ paddingHorizontal: 16, paddingVertical: 14 }}>
         <Text style={{ fontSize: 13, color: Colors.textSecondary, fontWeight: '500' }}>
-          {vehicle.vehicleTypeName}
+          {localizedVehicleTypeName(vehicle.vehicleTypeName, t)}
         </Text>
       </View>
 
@@ -213,7 +214,9 @@ export default function VehiclesScreen() {
           </Text>
           {hasAny ? (
             <Text style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 2 }}>
-              {vehicles!.length} {vehicles!.length === 1 ? 'vehicle' : 'vehicles'}
+              {t(vehicles!.length === 1 ? 'vehicle.countOne' : 'vehicle.countMany', {
+                n: vehicles!.length,
+              })}
             </Text>
           ) : null}
         </View>

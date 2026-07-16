@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/Colors';
 import { useLogin, useRegister } from '@/hooks/auth/useAuth';
 import { useT } from '@/i18n/useT';
+import { localizedAuthError } from '@/utils/authError';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { Calendar, Eye, EyeOff, Lock, Mail, Phone, User } from 'lucide-react-native';
@@ -22,12 +23,6 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { z } from 'zod';
-
-function extractApiError(err: any): string | undefined {
-  const msg = err?.response?.data?.message;
-  if (!msg) return undefined;
-  return Array.isArray(msg) ? msg.join(', ') : String(msg);
-}
 
 type PasswordFieldProps = {
   control: Control<any>;
@@ -250,8 +245,12 @@ export default function RegisterScreen() {
   const onSubmit = async (data: RegisterInput) => {
     try {
       await register({ name: data.name, phone: data.phone, email: data.email, password: data.password, dateOfBirth: dobToIso(data.dateOfBirth) });
-    } catch (err) {
-      Toast.show({ type: 'error', text1: t('auth.registerErr'), text2: extractApiError(err) ?? t('auth.registerErrFallback') });
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: t('auth.registerErr'),
+        text2: localizedAuthError(error, t, 'auth.registerErrFallback'),
+      });
       return;
     }
     try {

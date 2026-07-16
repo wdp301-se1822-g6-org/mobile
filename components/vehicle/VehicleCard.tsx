@@ -1,6 +1,8 @@
 import { Colors } from '@/constants/Colors';
 import { Vehicle } from '@/types/vehicle';
 import { vehicleIcon } from '@/utils/vehicleIcon';
+import { localizedVehicleTypeName } from '@/utils/vehicleTypeLabel';
+import { useT } from '@/i18n/useT';
 import { Star } from 'lucide-react-native';
 import { Text, View } from 'react-native';
 import { PressableCard } from '../ui/PressableCard';
@@ -12,6 +14,7 @@ type Props = {
 };
 
 export function VehicleCard({ vehicle, onPress }: Props) {
+  const t = useT();
   const Icon = vehicleIcon(vehicle.vehicleTypeName);
   return (
     <PressableCard
@@ -45,7 +48,7 @@ export function VehicleCard({ vehicle, onPress }: Props) {
             )}
           </View>
           <Text style={{ fontSize: 13, color: Colors.textSecondary, marginTop: 2 }}>
-            {vehicle.vehicleTypeName}
+            {localizedVehicleTypeName(vehicle.vehicleTypeName, t)}
           </Text>
         </View>
       </View>

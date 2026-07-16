@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/Colors';
 import { useLogin } from '@/hooks/auth/useAuth';
 import { useT } from '@/i18n/useT';
+import { localizedAuthError } from '@/utils/authError';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react-native';
@@ -63,12 +64,12 @@ export default function LoginScreen() {
       } else {
         router.replace('/(tabs)/home');
       }
-    } catch (err: any) {
-      const msg = err?.response?.data?.message;
-      const text2 = Array.isArray(msg)
-        ? msg.join(', ')
-        : (msg ?? t('auth.loginErrSub'));
-      Toast.show({ type: 'error', text1: t('auth.loginErrTitle'), text2 });
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: t('auth.loginErrTitle'),
+        text2: localizedAuthError(error, t, 'auth.loginErrSub'),
+      });
     }
   };
 

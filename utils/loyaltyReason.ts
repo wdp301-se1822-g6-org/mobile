@@ -13,7 +13,7 @@ export type LoyaltyTxnKind =
   | 'deduct'
   | 'neutral';
 
-/** Codes seen in `type` / `reason`. The API is not versioned, so unknown codes must stay readable. */
+/** Codes seen in `type` / `reason`. */
 const KIND_BY_CODE: Record<string, LoyaltyTxnKind> = {
   earn:             'earn',
   earned:           'earn',
@@ -73,15 +73,12 @@ const RESET_CODES = new Set(['annual_reset', 'reset']);
 export type LoyaltyTxnDescription = {
   kind: LoyaltyTxnKind;
   title: string;
-  /** Extra context from the API; null when `reason` is only a machine code the title already covers. */
+  /** Reserved for localized customer-facing context. */
   note: string | null;
 };
 
 const normalize = (value?: string | null): string =>
   (value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
-
-/** A reason worth showing reads like a sentence; `voucher_redeemed` only repeats the title. */
-const isMachineCode = (raw: string): boolean => /^[a-z0-9]+(_[a-z0-9]+)*$/.test(raw.toLowerCase());
 
 function resolveKind(txn: LoyaltyTransaction): LoyaltyTxnKind {
   const code = normalize(txn.type);
@@ -117,14 +114,14 @@ function resolveTitleKey(kind: LoyaltyTxnKind, txn: LoyaltyTransaction): Transla
   }
 }
 
-/** Turns a raw transaction into a title a customer can read, plus any free-text note behind it. */
+/** Turns a raw transaction into customer-facing text in the selected app language. */
 export function describeLoyaltyTransaction(txn: LoyaltyTransaction, t: Translate): LoyaltyTxnDescription {
   const kind = resolveKind(txn);
-  const raw = txn.reason?.trim();
 
   return {
     kind,
     title: t(resolveTitleKey(kind, txn)),
-    note: raw && !isMachineCode(raw) ? raw : null,
+    // API reasons are server-generated English text. Do not leak them into localized UI.
+    note: null,
   };
 }

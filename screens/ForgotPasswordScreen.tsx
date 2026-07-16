@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/Colors';
 import { useSendOtp, useVerifyOtp } from '@/hooks/auth/useAuth';
 import { useT } from '@/i18n/useT';
+import { localizedAuthError } from '@/utils/authError';
 import { router } from 'expo-router';
 import { KeyRound, Mail } from 'lucide-react-native';
 import { useRef, useState } from 'react';
@@ -44,8 +45,12 @@ export default function ForgotPasswordScreen() {
       Toast.show({ type: 'success', text1: t('auth.otpSentOk'), text2: t('auth.otpSentSub') });
       setStep('otp');
       setTimeout(() => otpRef.current?.focus(), 300);
-    } catch {
-      Toast.show({ type: 'error', text1: t('auth.otpSendErr'), text2: t('auth.otpSendErrSub') });
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: t('auth.otpSendErr'),
+        text2: localizedAuthError(error, t, 'auth.otpSendErrSub'),
+      });
     }
   };
 
@@ -55,8 +60,12 @@ export default function ForgotPasswordScreen() {
       await verifyOtp({ email, code: otp });
       Toast.show({ type: 'success', text1: t('auth.otpVerifiedOk') });
       router.replace('/(auth)/login');
-    } catch {
-      Toast.show({ type: 'error', text1: t('auth.otpVerifyErr') });
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: t('auth.otpVerifyErr'),
+        text2: localizedAuthError(error, t, 'auth.otpVerifyErr'),
+      });
     }
   };
 
