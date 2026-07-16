@@ -17,6 +17,7 @@ import { Voucher } from '@/types/voucher';
 import { formatPrice } from '@/utils/formatters';
 import { resolveVehiclePricing } from '@/utils/servicePricing';
 import { vehicleIcon } from '@/utils/vehicleIcon';
+import { localizedVehicleTypeName } from '@/utils/vehicleTypeLabel';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import {
@@ -550,7 +551,7 @@ export default function NewBookingScreen() {
                             marginTop: 2,
                           }}
                         >
-                          {v.vehicleTypeName}
+                          {localizedVehicleTypeName(v.vehicleTypeName, t)}
                         </Text>
                       </View>
                       <ChevronRight
@@ -883,7 +884,10 @@ export default function NewBookingScreen() {
                     );
                   })(),
                   label: t('bookingNew.vehicle'),
-                  value: `${selectedVehicle.licensePlate} (${selectedVehicle.vehicleTypeName})`,
+                  value: `${selectedVehicle.licensePlate} (${localizedVehicleTypeName(
+                    selectedVehicle.vehicleTypeName,
+                    t,
+                  )})`,
                 },
                 {
                   icon: (

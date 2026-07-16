@@ -7,6 +7,7 @@ import { useCancelOrder, useOrder } from '@/hooks/booking/useBooking';
 import { useOrderFeedback } from '@/hooks/feedback/useFeedback';
 import { useVehicles } from '@/hooks/vehicle/useVehicle';
 import { OrderStatus } from '@/types/booking';
+import { localizedVehicleTypeName } from '@/utils/vehicleTypeLabel';
 import { describeDiscountReason } from '@/utils/discount';
 import { formatPrice } from '@/utils/formatters';
 import { describeCancelReason } from '@/utils/orderReason';
@@ -151,7 +152,9 @@ export default function BookingDetailScreen() {
   const orderVehicle = vehicles.find((vehicle) => vehicle.id === order.vehicleId);
   const licensePlate = order.licensePlate?.trim() || orderVehicle?.licensePlate?.trim() || t('common.noData');
   const vehicleTypeName = order.vehicleTypeName?.trim() || orderVehicle?.vehicleTypeName?.trim();
-  const vehicleLabel = vehicleTypeName ? `${licensePlate} · ${vehicleTypeName}` : licensePlate;
+  const vehicleLabel = vehicleTypeName
+    ? `${licensePlate} · ${localizedVehicleTypeName(vehicleTypeName, t)}`
+    : licensePlate;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>

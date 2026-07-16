@@ -2,6 +2,7 @@ import { Colors } from '@/constants/Colors';
 import { useLocale, useT } from '@/i18n/useT';
 import { Order, OrderStatus } from '@/types/booking';
 import { formatPrice } from '@/utils/formatters';
+import { localizedVehicleTypeName } from '@/utils/vehicleTypeLabel';
 import { Car } from 'lucide-react-native';
 import { Text, View } from 'react-native';
 import { PressableCard } from '../ui/PressableCard';
@@ -85,7 +86,11 @@ export function OrderCard({ order, onPress, showDate = true }: Props) {
               <Car size={13} color={Colors.textSecondary} strokeWidth={1.5} />
               <Text style={{ flex: 1, fontSize: 13, color: Colors.textSecondary }} numberOfLines={1}>
                 {order.licensePlate
-                  ? `${order.licensePlate}${order.vehicleTypeName ? ' · ' + order.vehicleTypeName : ''}`
+                  ? `${order.licensePlate}${
+                      order.vehicleTypeName
+                        ? ` · ${localizedVehicleTypeName(order.vehicleTypeName, t)}`
+                        : ''
+                    }`
                   : '—'}
               </Text>
             </View>
