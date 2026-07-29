@@ -2,7 +2,13 @@ import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { LoginDto, OtpSendDto, OtpVerifyDto, RegisterDto } from '@/types/auth';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { InteractionManager } from 'react-native';
+
+// Dài hơn transition của native-stack (~300ms) để màn cũ kịp unmount trước khi
+// session bị xoá. KHÔNG dùng InteractionManager.runAfterInteractions ở đây:
+// expo-router chạy trên native-stack, animation nằm hoàn toàn bên native và
+// không đăng ký interaction handle nào, nên hàng đợi luôn rỗng và callback bắn
+// ngay setImmediate kế tiếp — tức là còn sớm hơn cả router.replace của caller.
+const LOGOUT_TEARDOWN_DELAY_MS = 400;
 
 export function useLogin() {
   const login = useAuthStore((s) => s.login);
@@ -52,19 +58,12 @@ export function useLogout() {
     // (tabs) cũng đã unmount nên clear() không còn observer nào để đánh thức —
     // hết loạt refetch 401 (token đã null) chen vào giữa transition.
     onSettled: () => {
-      let done = false;
-      const teardown = () => {
-        if (done) return;
-        done = true;
+      setTimeout(() => {
         logout();
         // Cache của phiên cũ (orders, loyalty…) phải chết theo, nếu không user kế
         // tiếp sẽ thấy nháy dữ liệu của người trước trước khi refetch.
         queryClient.clear();
-      };
-      InteractionManager.runAfterInteractions(teardown);
-      // Lưới an toàn: một interaction handle không được release sẽ treo
-      // runAfterInteractions vĩnh viễn — phiên cũ sống sót là lỗi bảo mật.
-      setTimeout(teardown, 1000);
+      }, LOGOUT_TEARDOWN_DELAY_MS);
     },
   });
 }
