@@ -2,6 +2,7 @@ import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { LoginDto, OtpSendDto, OtpVerifyDto, RegisterDto } from '@/types/auth';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { InteractionManager } from 'react-native';
 
 export function useLogin() {
   const login = useAuthStore((s) => s.login);
@@ -43,11 +44,27 @@ export function useLogout() {
       const { accessToken, refreshToken } = useAuthStore.getState();
       authService.logout(refreshToken ?? '', accessToken ?? undefined).catch(() => {});
     },
+    // Teardown phải chạy SAU khi màn cũ rời khỏi màn hình. onSettled của hook
+    // luôn chạy trước onSettled của mutate() — nơi caller gọi router.replace —
+    // nên xoá store ngay tại đây khiến màn Me re-render với authUser null (tên
+    // rỗng, avatar "?") rồi mới thấy điều hướng, và cái màn rỗng đó còn trôi
+    // hết animation. Hoãn lại thì màn cũ giữ nguyên dữ liệu lúc trượt ra, và
+    // (tabs) cũng đã unmount nên clear() không còn observer nào để đánh thức —
+    // hết loạt refetch 401 (token đã null) chen vào giữa transition.
     onSettled: () => {
-      logout();
-      // Cache của phiên cũ (orders, loyalty…) phải chết theo, nếu không user kế
-      // tiếp sẽ thấy nháy dữ liệu của người trước trước khi refetch.
-      queryClient.clear();
+      let done = false;
+      const teardown = () => {
+        if (done) return;
+        done = true;
+        logout();
+        // Cache của phiên cũ (orders, loyalty…) phải chết theo, nếu không user kế
+        // tiếp sẽ thấy nháy dữ liệu của người trước trước khi refetch.
+        queryClient.clear();
+      };
+      InteractionManager.runAfterInteractions(teardown);
+      // Lưới an toàn: một interaction handle không được release sẽ treo
+      // runAfterInteractions vĩnh viễn — phiên cũ sống sót là lỗi bảo mật.
+      setTimeout(teardown, 1000);
     },
   });
 }
