@@ -9,8 +9,18 @@ export const authService = {
   register: (dto: RegisterDto) =>
     axiosInstance.post<User>(API.auth.register, dto).then((r) => r.data),
 
-  logout: (refreshToken: string) =>
-    axiosInstance.post(API.auth.logout, { refreshToken }),
+  // accessToken truyền tường minh vì useLogout xoá store ngay lúc bấm, còn
+  // request interceptor chạy trong microtask sau đó — chờ store thì header
+  // Authorization sẽ rỗng. Interceptor chỉ ghi đè khi store còn token, nên
+  // header đặt sẵn ở đây sống sót.
+  logout: (refreshToken: string, accessToken?: string) =>
+    axiosInstance.post(
+      API.auth.logout,
+      { refreshToken },
+      accessToken
+        ? { headers: { Authorization: `Bearer ${accessToken}` } }
+        : undefined,
+    ),
 
   // Không có refresh() ở đây: refresh chỉ được phép chạy qua single-flight
   // trong services/api.ts. Gọi thẳng từ đây sẽ lấy token mới mà không ghi vào
