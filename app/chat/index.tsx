@@ -4,10 +4,10 @@ import { chatService } from '@/services/chat.service';
 import { ChatMessage } from '@/types/chat';
 import { router } from 'expo-router';
 import { ArrowLeft, Bot, Send } from 'lucide-react-native';
-import { useRef, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { FlatList, Keyboard, KeyboardAvoidingView, Pressable, Text, TextInput, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ChatScreen() {
   const t = useT();
@@ -18,6 +18,14 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | undefined>();
   const listRef = useRef<FlatList>(null);
+  const insets = useSafeAreaInsets();
+
+  // Bàn phím mở làm list ngắn lại nhưng không đổi content size -> onContentSizeChange
+  // không bắn, tin nhắn cuối bị che. Phải tự cuộn.
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => listRef.current?.scrollToEnd({ animated: true }));
+    return () => sub.remove();
+  }, []);
 
   const send = async () => {
     const text = input.trim();
@@ -38,7 +46,7 @@ export default function ChatScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12, borderBottomWidth: 1, borderBottomColor: Colors.border, backgroundColor: Colors.surface }}>
         <Pressable onPress={() => router.back()} style={{ padding: 4 }}>
           <ArrowLeft size={22} color={Colors.textPrimary} strokeWidth={1.5} />
@@ -52,55 +60,67 @@ export default function ChatScreen() {
         </View>
       </View>
 
-      <FlatList
-        ref={listRef}
-        data={messages}
-        keyExtractor={(_, i) => i.toString()}
-        contentContainerStyle={{ padding: 16, gap: 12 }}
-        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
-        renderItem={({ item }) => {
-          const isUser = item.role === 'user';
-          return (
-            <Animated.View
-              entering={isUser ? FadeInUp.springify() : FadeInDown.springify()}
-              style={{ flexDirection: 'row', justifyContent: isUser ? 'flex-end' : 'flex-start', gap: 8 }}
-            >
-              {!isUser && (
-                <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
-                  <Bot size={16} color={Colors.primary} strokeWidth={1.5} />
+      {/*
+        KAV phải bọc CẢ list lẫn thanh nhập và có flex:1 thì padding nó chèn mới đẩy được
+        input lên. Thanh nhập tự chừa insets.bottom, nên offset âm để KAV khỏi cộng thêm
+        lần nữa (không thì input lơ lửng trên bàn phím một khoảng bằng home indicator).
+      */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior="padding"
+        keyboardVerticalOffset={-insets.bottom}
+      >
+        <FlatList
+          ref={listRef}
+          data={messages}
+          keyExtractor={(_, i) => i.toString()}
+          contentContainerStyle={{ padding: 16, gap: 12 }}
+          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          renderItem={({ item }) => {
+            const isUser = item.role === 'user';
+            return (
+              <Animated.View
+                entering={isUser ? FadeInUp.springify() : FadeInDown.springify()}
+                style={{ flexDirection: 'row', justifyContent: isUser ? 'flex-end' : 'flex-start', gap: 8 }}
+              >
+                {!isUser && (
+                  <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+                    <Bot size={16} color={Colors.primary} strokeWidth={1.5} />
+                  </View>
+                )}
+                <View style={{
+                  maxWidth: '75%',
+                  backgroundColor: isUser ? Colors.primary : Colors.surface,
+                  borderRadius: 16,
+                  borderBottomRightRadius: isUser ? 4 : 16,
+                  borderBottomLeftRadius: isUser ? 16 : 4,
+                  padding: 12,
+                  shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+                }}>
+                  <Text style={{ fontSize: 14, color: isUser ? Colors.white : Colors.textPrimary, lineHeight: 20 }}>
+                    {item.content}
+                  </Text>
                 </View>
-              )}
-              <View style={{
-                maxWidth: '75%',
-                backgroundColor: isUser ? Colors.primary : Colors.surface,
-                borderRadius: 16,
-                borderBottomRightRadius: isUser ? 4 : 16,
-                borderBottomLeftRadius: isUser ? 16 : 4,
-                padding: 12,
-                shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
-              }}>
-                <Text style={{ fontSize: 14, color: isUser ? Colors.white : Colors.textPrimary, lineHeight: 20 }}>
-                  {item.content}
-                </Text>
+              </Animated.View>
+            );
+          }}
+          ListFooterComponent={loading ? (
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' }}>
+                <Bot size={16} color={Colors.primary} strokeWidth={1.5} />
               </View>
-            </Animated.View>
-          );
-        }}
-        ListFooterComponent={loading ? (
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' }}>
-              <Bot size={16} color={Colors.primary} strokeWidth={1.5} />
+              <View style={{ backgroundColor: Colors.surface, borderRadius: 16, borderBottomLeftRadius: 4, padding: 12 }}>
+                <Text style={{ color: Colors.textSecondary, fontSize: 14 }}>{t('chat.typing')}</Text>
+              </View>
             </View>
-            <View style={{ backgroundColor: Colors.surface, borderRadius: 16, borderBottomLeftRadius: 4, padding: 12 }}>
-              <Text style={{ color: Colors.textSecondary, fontSize: 14 }}>{t('chat.typing')}</Text>
-            </View>
-          </View>
-        ) : null}
-      />
+          ) : null}
+        />
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
         <View style={{
-          flexDirection: 'row', padding: 12, gap: 10, alignItems: 'flex-end',
+          flexDirection: 'row', paddingHorizontal: 12, paddingTop: 12, paddingBottom: 12 + insets.bottom,
+          gap: 10, alignItems: 'flex-end',
           borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: Colors.surface,
         }}>
           <TextInput

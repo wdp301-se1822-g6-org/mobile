@@ -12,8 +12,9 @@ export const authService = {
   logout: (refreshToken: string) =>
     axiosInstance.post(API.auth.logout, { refreshToken }),
 
-  refresh: (refreshToken: string) =>
-    axiosInstance.post<AuthResponse>(API.auth.refresh, { refreshToken }).then((r) => r.data),
+  // Không có refresh() ở đây: refresh chỉ được phép chạy qua single-flight
+  // trong services/api.ts. Gọi thẳng từ đây sẽ lấy token mới mà không ghi vào
+  // store, trong khi BE đã revoke token cũ -> phiên chết ở request kế tiếp.
 
   getMe: () =>
     axiosInstance.get<User>(API.auth.me).then((r) => r.data),

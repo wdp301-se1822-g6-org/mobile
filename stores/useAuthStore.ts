@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+const HYDRATION_TIMEOUT_MS = 3000;
+
 type AuthState = {
   accessToken: string | null;
   refreshToken: string | null;
@@ -30,12 +32,32 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        set({ accessToken: null, refreshToken: null, authUser: null, isLoggedIn: false });
+        set({
+          accessToken: null,
+          refreshToken: null,
+          authUser: null,
+          isLoggedIn: false,
+        });
       },
 
       setUser: (user) => set({ authUser: user }),
 
       initAuth: async () => {
+        const { persist: authPersist } = useAuthStore;
+        if (!authPersist.hasHydrated()) {
+          await new Promise<void>((resolve) => {
+            const timer = setTimeout(() => {
+              unsub();
+              resolve();
+            }, HYDRATION_TIMEOUT_MS);
+            const unsub = authPersist.onFinishHydration(() => {
+              clearTimeout(timer);
+              unsub();
+              resolve();
+            });
+          });
+        }
+
         const { accessToken } = get();
         set({ isLoggedIn: !!accessToken, isInitialized: true });
       },

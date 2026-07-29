@@ -8,7 +8,7 @@ import { useOrderWorkOrder } from '@/hooks/work-order/useWorkOrder';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Camera, CheckCircle, Images, Star, X } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
-import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Modal, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -150,7 +150,12 @@ export default function FeedbackScreen() {
         </Text>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/*
+        'padding' cho cả 2 platform: Android SDK 54 chạy edge-to-edge nên adjustResize
+        không còn co window, để undefined là bàn phím che ô nhận xét. RN tính padding theo
+        khoảng cách từ đáy KAV tới đỉnh bàn phím nên máy nào còn resize vẫn ra ~0, không đẩy kép.
+      */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 16 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {order && (
             <Animated.View

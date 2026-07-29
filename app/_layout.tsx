@@ -1,7 +1,8 @@
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { router, Stack, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
@@ -20,6 +21,26 @@ function onAppStateChange(status: AppStateStatus) {
 // Cầu nối realtime: phải nằm BÊN TRONG QueryClientProvider để dùng useQueryClient.
 function RealtimeBridge() {
   useRealtimeSync();
+  return null;
+}
+
+// Interceptor trong services/api.ts gọi logout() khi refresh token hết hạn, nhưng nó
+// chạy ngoài React nên không điều hướng được — user bị mất session mà vẫn đứng nguyên
+// màn đang xem. Guard này mount một lần ở root nên bắt được mọi route, kể cả các màn
+// push ngoài group như booking/[id] hay chat.
+function AuthGuard() {
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+  const isInitialized = useAuthStore((s) => s.isInitialized);
+  const segments = useSegments();
+
+  useEffect(() => {
+    if (!isInitialized || isLoggedIn) return;
+    // Không có segment nào = đang ở app/index.tsx, màn đó tự <Redirect> theo role.
+    const [group] = segments;
+    if (!group || group === '(auth)') return;
+    router.replace('/(auth)/welcome');
+  }, [isInitialized, isLoggedIn, segments]);
+
   return null;
 }
 
@@ -47,6 +68,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <RealtimeBridge />
+      <AuthGuard />
       <Stack screenOptions={{ headerShown: false, gestureEnabled: true }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" />
