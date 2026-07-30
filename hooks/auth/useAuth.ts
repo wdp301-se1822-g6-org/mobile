@@ -1,6 +1,13 @@
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { LoginDto, OtpSendDto, OtpVerifyDto, RegisterDto } from '@/types/auth';
+import {
+  ForgotPasswordDto,
+  LoginDto,
+  OtpSendDto,
+  OtpVerifyDto,
+  RegisterDto,
+  ResetPasswordDto,
+} from '@/types/auth';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 // Dài hơn transition của native-stack (~300ms) để màn cũ kịp unmount trước khi
@@ -19,8 +26,8 @@ export function useLogin() {
 }
 
 export function useRegister() {
-  // /auth/register returns the created user only — no tokens.
-  // Caller should follow up with useLogin() to acquire a session.
+  // Registration creates an inactive account. Its response has the AuthResponse
+  // shape, but it must not create a local session before /auth/otp/verify.
   return useMutation({
     mutationFn: (dto: RegisterDto) => authService.register(dto),
   });
@@ -35,6 +42,20 @@ export function useSendOtp() {
 export function useVerifyOtp() {
   return useMutation({
     mutationFn: (dto: OtpVerifyDto) => authService.verifyOtp(dto),
+  });
+}
+
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (dto: ForgotPasswordDto) =>
+      authService.forgotPassword(dto),
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: (dto: ResetPasswordDto) =>
+      authService.resetPassword(dto),
   });
 }
 

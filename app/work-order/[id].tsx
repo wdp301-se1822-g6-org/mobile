@@ -9,9 +9,10 @@ import {
 } from '@/hooks/work-order/useWorkOrder';
 import { useT } from '@/i18n/useT';
 import { axiosInstance } from '@/services/api';
+import { vehicleIcon } from '@/utils/vehicleIcon';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Camera, Car, CheckCircle, X } from 'lucide-react-native';
+import { ArrowLeft, Camera, CheckCircle, X } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   Alert,
@@ -120,6 +121,7 @@ export default function WorkOrderDetailScreen() {
   if (!workOrder) return null;
 
   const vehicle = workOrder.vehicleSnapshot ?? {};
+  const VehicleIcon = vehicleIcon(vehicle.vehicleTypeName);
   // Suy ra trạng thái từ mốc thời gian + status, không phụ thuộc đúng 1 chuỗi,
   // để nút "Bắt đầu" / "Hoàn thành" vẫn hiện dù backend trả status khác.
   const isDone = workOrder.status === 'done' || !!workOrder.finishedAt;
@@ -195,7 +197,7 @@ export default function WorkOrderDetailScreen() {
                 justifyContent: 'center',
               }}
             >
-              <Car size={24} color={Colors.primary} strokeWidth={1.5} />
+              <VehicleIcon size={24} color={Colors.primary} strokeWidth={1.5} />
             </View>
             <View>
               <Text

@@ -4,12 +4,14 @@ import { OrderStatus } from '@/types/booking';
 import { Text, View } from 'react-native';
 
 const STYLE: Record<OrderStatus, { color: string; bg: string }> = {
-  pending:     { color: Colors.warning,       bg: '#FEF9C3' },
-  confirmed:   { color: Colors.primary,       bg: Colors.primaryLight },
-  in_progress: { color: Colors.primary,       bg: Colors.primaryMid },
-  completed:   { color: Colors.success,       bg: '#DCFCE7' },
-  cancelled:   { color: Colors.danger,        bg: '#FEE2E2' },
-  no_show:     { color: Colors.textSecondary, bg: Colors.border },
+  pending:         { color: Colors.warning,       bg: '#FEF9C3' },
+  pending_payment: { color: Colors.warning,       bg: '#FEF9C3' },
+  confirmed:       { color: Colors.primary,       bg: Colors.primaryLight },
+  checked_in:      { color: '#7C3AED',            bg: '#EDE9FE' },
+  in_progress:     { color: Colors.primary,       bg: Colors.primaryMid },
+  completed:       { color: Colors.success,       bg: '#DCFCE7' },
+  cancelled:       { color: Colors.danger,        bg: '#FEE2E2' },
+  no_show:         { color: Colors.textSecondary, bg: Colors.border },
 };
 
 export function StatusBadge({ status }: { status: OrderStatus }) {

@@ -2,8 +2,8 @@ import { Colors } from '@/constants/Colors';
 import { useLocale, useT } from '@/i18n/useT';
 import { Order, OrderStatus } from '@/types/booking';
 import { formatPrice } from '@/utils/formatters';
+import { vehicleIcon } from '@/utils/vehicleIcon';
 import { localizedVehicleTypeName } from '@/utils/vehicleTypeLabel';
-import { Car } from 'lucide-react-native';
 import { Text, View } from 'react-native';
 import { PressableCard } from '../ui/PressableCard';
 import { StatusBadge } from './StatusBadge';
@@ -11,29 +11,42 @@ import { StatusBadge } from './StatusBadge';
 type Props = {
   order: Order;
   onPress?: () => void;
+  /** Resolved from the customer's vehicle list when OrderResponse omits it. */
+  vehicleTypeName?: string;
   /** Hide the date under the time when the list already groups by day. */
   showDate?: boolean;
 };
 
 const STATUS_ACCENT: Record<OrderStatus, string> = {
-  pending:     Colors.warning,
-  confirmed:   Colors.primary,
-  in_progress: Colors.primary,
-  completed:   Colors.success,
-  cancelled:   Colors.danger,
-  no_show:     Colors.textSecondary,
+  pending:         Colors.warning,
+  pending_payment: Colors.warning,
+  confirmed:       Colors.primary,
+  checked_in:      '#7C3AED',
+  in_progress:     Colors.primary,
+  completed:       Colors.success,
+  cancelled:       Colors.danger,
+  no_show:         Colors.textSecondary,
 };
 
 const PAYMENT_STYLE = {
-  unpaid:   { color: '#92400E',            bg: '#FEF3C7' },
-  paid:     { color: Colors.success,       bg: '#DCFCE7' },
-  refunded: { color: Colors.textSecondary, bg: Colors.border },
+  unpaid:             { color: '#92400E',            bg: '#FEF3C7' },
+  paid:               { color: Colors.success,       bg: '#DCFCE7' },
+  refunded:           { color: Colors.textSecondary, bg: Colors.border },
+  no_payment_required: { color: Colors.textSecondary, bg: Colors.border },
 };
 
-export function OrderCard({ order, onPress, showDate = true }: Props) {
+export function OrderCard({
+  order,
+  onPress,
+  vehicleTypeName,
+  showDate = true,
+}: Props) {
   const t = useT();
   const locale = useLocale();
   const tag = locale === 'vi' ? 'vi-VN' : 'en-US';
+  const resolvedVehicleTypeName =
+    vehicleTypeName?.trim() || order.vehicleTypeName?.trim() || '';
+  const VehicleIcon = vehicleIcon(resolvedVehicleTypeName);
 
   const date = new Date(order.scheduledAt);
   const dateStr = date.toLocaleDateString(tag, { day: '2-digit', month: '2-digit' });
@@ -83,12 +96,16 @@ export function OrderCard({ order, onPress, showDate = true }: Props) {
               <StatusBadge status={order.status} />
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Car size={13} color={Colors.textSecondary} strokeWidth={1.5} />
+              <VehicleIcon
+                size={13}
+                color={Colors.textSecondary}
+                strokeWidth={1.5}
+              />
               <Text style={{ flex: 1, fontSize: 13, color: Colors.textSecondary }} numberOfLines={1}>
                 {order.licensePlate
                   ? `${order.licensePlate}${
-                      order.vehicleTypeName
-                        ? ` · ${localizedVehicleTypeName(order.vehicleTypeName, t)}`
+                      resolvedVehicleTypeName
+                        ? ` · ${localizedVehicleTypeName(resolvedVehicleTypeName, t)}`
                         : ''
                     }`
                   : '—'}

@@ -15,7 +15,7 @@ import { useT } from '@/i18n/useT';
 import { warmUpApi } from '@/services/health.service';
 import { localizedAuthError } from '@/utils/authError';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -25,9 +25,16 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import Toast from 'react-native-toast-message';
 import { z } from 'zod';
 
+function apiStatus(error: unknown): number | undefined {
+  return (error as { response?: { status?: number } }).response?.status;
+}
+
 export default function LoginScreen() {
   const t = useT();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ email?: string }>();
+  const initialEmail =
+    typeof params.email === 'string' ? params.email : '';
   const [showPw, setShowPw] = useState(false);
   const { mutateAsync: login, isPending } = useLogin();
   const { scrollProps, fieldProps } = useKeyboardLift();
@@ -56,6 +63,7 @@ export default function LoginScreen() {
     formState: { errors },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
+    defaultValues: { email: initialEmail, password: '' },
   });
 
   const onSubmit = async (data: LoginInput) => {
@@ -70,6 +78,21 @@ export default function LoginScreen() {
         router.replace('/(tabs)/home');
       }
     } catch (error) {
+      if (apiStatus(error) === 403) {
+        Toast.show({
+          type: 'info',
+          text1: t('auth.activationRequired'),
+          text2: t('auth.activationRequiredSub'),
+        });
+        router.replace({
+          pathname: '/(auth)/register',
+          params: {
+            verifyEmail: data.email.trim().toLowerCase(),
+          },
+        });
+        return;
+      }
+
       Toast.show({
         type: 'error',
         text1: t('auth.loginErrTitle'),

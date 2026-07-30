@@ -6,6 +6,7 @@ export type User = {
   email: string;
   phone: string;
   role: UserRole;
+  avatarUrl?: string;
   dateOfBirth?: string;
   isActive: boolean;
 };
@@ -31,5 +32,13 @@ export type RegisterDto = {
 
 export type OtpSendDto = { email: string };
 export type OtpVerifyDto = { email: string; code: string };
-export type OtpSendResponse = { message: string; token: string };
+export type OtpSendResponse = { message: string; token?: string };
 export type OtpVerifyResponse = { token: string };
+
+export type ForgotPasswordDto = { email: string };
+export type ResetPasswordDto = {
+  email: string;
+  code: string;
+  newPassword: string;
+};
+export type MessageResponse = { message: string };

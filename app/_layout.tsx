@@ -10,10 +10,23 @@ import { useEffect } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
-import Toast from 'react-native-toast-message';
+import Toast, {
+  ErrorToast,
+  type ToastConfig,
+} from 'react-native-toast-message';
 import '../global.css';
 
 const queryClient = new QueryClient();
+const toastConfig: ToastConfig = {
+  twoLineError: (props) => (
+    <ErrorToast
+      {...props}
+      style={{ height: 76, borderLeftColor: '#FE6301' }}
+      text2NumberOfLines={2}
+      text2Style={[props.text2Style, { lineHeight: 14 }]}
+    />
+  ),
+};
 
 // Cho React Query biết app đang foreground hay background (RN không tự biết).
 // Nhờ vậy polling tạm dừng khi vào background và tự refetch khi quay lại.
@@ -112,7 +125,7 @@ export default function RootLayout() {
           <GestureStack.Screen name="feedback/[orderId]" />
           <GestureStack.Screen name="profile" />
         </GestureStack>
-        <Toast />
+        <Toast config={toastConfig} />
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

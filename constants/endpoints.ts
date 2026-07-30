@@ -7,6 +7,8 @@ export const API = {
     me: '/auth/me',
     otpSend: '/auth/otp/send',
     otpVerify: '/auth/otp/verify',
+    forgotPassword: '/auth/forgot-password',
+    resetPassword: '/auth/reset-password',
   },
   me: {
     loyalty: '/me/loyalty',

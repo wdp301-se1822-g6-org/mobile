@@ -2,6 +2,7 @@ import { OrderCard } from '@/components/booking/OrderCard';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Colors } from '@/constants/Colors';
 import { useOrders } from '@/hooks/booking/useBooking';
+import { useVehicles } from '@/hooks/vehicle/useVehicle';
 import { useLocale, useT } from '@/i18n/useT';
 import { Order, OrderStatus } from '@/types/booking';
 import { router } from 'expo-router';
@@ -12,12 +13,12 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const FILTERS: { value: OrderStatus | 'all'; labelKey: string }[] = [
-  { value: 'all',         labelKey: 'bookings.filterAll' },
-  { value: 'pending',     labelKey: 'bookings.filterPending' },
-  { value: 'confirmed',   labelKey: 'bookings.filterConfirmed' },
+  { value: 'all', labelKey: 'bookings.filterAll' },
+  { value: 'pending_payment', labelKey: 'bookings.filterPending' },
+  { value: 'confirmed', labelKey: 'bookings.filterConfirmed' },
   { value: 'in_progress', labelKey: 'bookings.filterInProgress' },
-  { value: 'completed',   labelKey: 'bookings.filterCompleted' },
-  { value: 'cancelled',   labelKey: 'bookings.filterCancelled' },
+  { value: 'completed', labelKey: 'bookings.filterCompleted' },
+  { value: 'cancelled', labelKey: 'bookings.filterCancelled' },
 ];
 
 type DaySection = { key: string; day: number; past: boolean; data: Order[] };
@@ -153,7 +154,19 @@ export default function BookingsScreen() {
   const t = useT();
   const dayLabel = useDayLabel();
   const { data: orders, isLoading } = useOrders();
+  const { data: vehicles, isLoading: loadingVehicles } = useVehicles();
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all');
+
+  const vehicleTypeById = useMemo(
+    () =>
+      new Map(
+        (vehicles ?? []).map((vehicle) => [
+          vehicle.id,
+          vehicle.vehicleTypeName,
+        ]),
+      ),
+    [vehicles],
+  );
 
   const filtered = useMemo(() => {
     const list = orders ?? [];
@@ -221,7 +234,7 @@ export default function BookingsScreen() {
         })}
       </ScrollView>
 
-      {isLoading ? (
+      {isLoading || loadingVehicles ? (
         <LoadingSpinner />
       ) : !hasAny ? (
         <EmptyHero />
@@ -241,6 +254,7 @@ export default function BookingsScreen() {
               <OrderCard
                 order={item}
                 showDate={false}
+                vehicleTypeName={vehicleTypeById.get(item.vehicleId)}
                 onPress={() => router.push({ pathname: '/booking/[id]', params: { id: item.id } })}
               />
             </Animated.View>

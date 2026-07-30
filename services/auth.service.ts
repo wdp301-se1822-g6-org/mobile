@@ -1,5 +1,17 @@
 import { API } from '@/constants/endpoints';
-import { AuthResponse, LoginDto, OtpSendDto, OtpSendResponse, OtpVerifyDto, OtpVerifyResponse, RegisterDto, User } from '@/types/auth';
+import {
+  AuthResponse,
+  ForgotPasswordDto,
+  LoginDto,
+  MessageResponse,
+  OtpSendDto,
+  OtpSendResponse,
+  OtpVerifyDto,
+  OtpVerifyResponse,
+  RegisterDto,
+  ResetPasswordDto,
+  User,
+} from '@/types/auth';
 import { AUTH_TIMEOUT_MS, axiosInstance } from './api';
 
 // Các call auth dùng timeout riêng, rộng hơn 10s chung của instance: chúng là
@@ -12,7 +24,7 @@ export const authService = {
     axiosInstance.post<AuthResponse>(API.auth.login, dto, authConfig).then((r) => r.data),
 
   register: (dto: RegisterDto) =>
-    axiosInstance.post<User>(API.auth.register, dto, authConfig).then((r) => r.data),
+    axiosInstance.post<AuthResponse>(API.auth.register, dto, authConfig).then((r) => r.data),
 
   // accessToken truyền tường minh vì useLogout xoá store ngay lúc bấm, còn
   // request interceptor chạy trong microtask sau đó — chờ store thì header
@@ -39,4 +51,14 @@ export const authService = {
 
   verifyOtp: (dto: OtpVerifyDto) =>
     axiosInstance.post<OtpVerifyResponse>(API.auth.otpVerify, dto, authConfig).then((r) => r.data),
+
+  forgotPassword: (dto: ForgotPasswordDto) =>
+    axiosInstance
+      .post<MessageResponse>(API.auth.forgotPassword, dto, authConfig)
+      .then((r) => r.data),
+
+  resetPassword: (dto: ResetPasswordDto) =>
+    axiosInstance
+      .post<MessageResponse>(API.auth.resetPassword, dto, authConfig)
+      .then((r) => r.data),
 };

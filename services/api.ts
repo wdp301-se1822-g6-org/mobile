@@ -15,6 +15,8 @@ const PUBLIC_PATHS = [
   '/auth/refresh',
   '/auth/otp/send',
   '/auth/otp/verify',
+  '/auth/forgot-password',
+  '/auth/reset-password',
   // Ping hâm lambda (xem services/health.service.ts). Không cần token, và tuyệt
   // đối không được phép chạm vào phiên: một cú ping tối ưu hoá mà lại đi refresh
   // hay logout thì tệ hơn là không ping.

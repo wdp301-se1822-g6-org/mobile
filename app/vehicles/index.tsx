@@ -12,6 +12,10 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
+function apiStatus(error: unknown): number | undefined {
+  return (error as { response?: { status?: number } }).response?.status;
+}
+
 function VehicleRow({
   vehicle, onSetDefault, onDelete,
 }: {
@@ -187,7 +191,23 @@ export default function VehiclesScreen() {
         text: t('common.delete'), style: 'destructive',
         onPress: () => deleteVehicle(v.id, {
           onSuccess: () => Toast.show({ type: 'success', text1: t('vehicle.deleteOk') }),
-          onError: () => Toast.show({ type: 'error', text1: t('vehicle.deleteErr') }),
+          onError: (error) => {
+            if (apiStatus(error) === 409) {
+              Toast.show({
+                type: 'twoLineError',
+                text1: t('vehicle.deleteBlockedTitle'),
+                text2: t('vehicle.deleteBlockedSub', {
+                  plate: v.licensePlate,
+                }),
+              });
+              return;
+            }
+
+            Toast.show({
+              type: 'error',
+              text1: t('vehicle.deleteErr'),
+            });
+          },
         }),
       },
     ]);

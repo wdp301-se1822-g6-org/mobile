@@ -10,11 +10,11 @@ import {
 } from '@/components/auth/AuthScaffold';
 import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/Colors';
-import { useLogin, useRegister } from '@/hooks/auth/useAuth';
+import { useRegister } from '@/hooks/auth/useAuth';
 import { useT } from '@/i18n/useT';
 import { localizedAuthError } from '@/utils/authError';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Calendar, Eye, EyeOff, Lock, Mail, Phone, User } from 'lucide-react-native';
 import { ReactNode, RefObject, useMemo, useRef, useState } from 'react';
 import { Control, Controller, FieldErrors, useForm } from 'react-hook-form';
@@ -23,6 +23,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { z } from 'zod';
+import VerifyEmailScreen from './VerifyEmailScreen';
 
 type PasswordFieldProps = {
   control: Control<any>;
@@ -150,10 +151,10 @@ function isValidDob(value: string): boolean {
   );
 }
 
-/** Converts a validated `dd/mm/yyyy` string to an ISO 8601 UTC timestamp. */
-function dobToIso(value: string): string {
+/** Converts a validated `dd/mm/yyyy` string to Swagger's YYYY-MM-DD format. */
+function dobToApiDate(value: string): string {
   const [dd, mm, yyyy] = value.split('/').map(Number);
-  return new Date(Date.UTC(yyyy, mm - 1, dd)).toISOString();
+  return `${String(yyyy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
 }
 
 type DateFieldProps = {
@@ -204,8 +205,15 @@ function DateField({ control, name, label, placeholder, error, onFocus, inputRef
 export default function RegisterScreen() {
   const t = useT();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ verifyEmail?: string }>();
+  const initialVerificationEmail =
+    typeof params.verifyEmail === 'string'
+      ? params.verifyEmail.trim().toLowerCase()
+      : '';
+  const [verificationEmail, setVerificationEmail] = useState(
+    initialVerificationEmail,
+  );
   const { mutateAsync: register, isPending: registering } = useRegister();
-  const { mutateAsync: login, isPending: loggingIn } = useLogin();
   const { scrollProps, fieldProps } = useKeyboardLift();
   const fields = {
     name: fieldProps('name'),
@@ -223,13 +231,17 @@ export default function RegisterScreen() {
 
   const registerSchema = useMemo(() =>
     z.object({
-      name: z.string().min(2, t('auth.errNameMin')),
+      name: z.string()
+        .min(2, t('auth.errNameMin'))
+        .max(100, t('auth.errNameMax')),
       phone: z.string().regex(/^(0|\+84)[3-9][0-9]{8}$/, t('auth.errPhoneInvalid')),
       dateOfBirth: z.string()
         .regex(/^\d{2}\/\d{2}\/\d{4}$/, t('auth.errDobInvalid'))
         .refine(isValidDob, t('auth.errDobInvalid')),
-      email: z.email(t('auth.errEmailInvalid')),
-      password: z.string().min(8, t('auth.errPwMin')),
+      email: z.email(t('auth.errEmailInvalid')).max(255, t('auth.errEmailInvalid')),
+      password: z.string()
+        .min(8, t('auth.errPwMin'))
+        .max(72, t('auth.errPwMax')),
       confirmPassword: z.string(),
     }).refine((d) => d.password === d.confirmPassword, { path: ['confirmPassword'], message: t('auth.errPwMismatch') }),
   [t]);
@@ -244,26 +256,42 @@ export default function RegisterScreen() {
 
   const onSubmit = async (data: RegisterInput) => {
     try {
-      await register({ name: data.name, phone: data.phone, email: data.email, password: data.password, dateOfBirth: dobToIso(data.dateOfBirth) });
+      const email = data.email.trim().toLowerCase();
+      await register({
+        name: data.name.trim(),
+        phone: data.phone.trim(),
+        email,
+        password: data.password,
+        dateOfBirth: dobToApiDate(data.dateOfBirth),
+      });
+      Toast.show({
+        type: 'success',
+        text1: t('auth.registerOk'),
+        text2: t('auth.activationCodeSent'),
+      });
+      setVerificationEmail(email);
     } catch (error) {
       Toast.show({
         type: 'error',
         text1: t('auth.registerErr'),
         text2: localizedAuthError(error, t, 'auth.registerErrFallback'),
       });
-      return;
-    }
-    try {
-      await login({ email: data.email, password: data.password });
-      Toast.show({ type: 'success', text1: t('auth.registerOk') });
-      router.replace('/(tabs)/home');
-    } catch {
-      Toast.show({ type: 'info', text1: t('auth.registerOk'), text2: t('auth.registerThenLogin') });
-      router.replace('/(auth)/login');
     }
   };
 
-  const isPending = registering || loggingIn;
+  if (verificationEmail) {
+    return (
+      <VerifyEmailScreen
+        email={verificationEmail}
+        onBack={() =>
+          router.replace({
+            pathname: '/(auth)/login',
+            params: { email: verificationEmail },
+          })
+        }
+      />
+    );
+  }
 
   return (
     <AuthBackground>
@@ -375,7 +403,7 @@ export default function RegisterScreen() {
               </Animated.View>
 
               <Animated.View entering={FadeInDown.delay(360).springify()} style={{ gap: 14, marginTop: 24 }}>
-                <Button title={t('auth.registerSubmit')} onPress={handleSubmit(onSubmit)} loading={isPending} />
+                <Button title={t('auth.registerSubmit')} onPress={handleSubmit(onSubmit)} loading={registering} />
                 <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
                   <Text style={{ fontSize: 14, color: Colors.textSecondary }}>{t('auth.hasAccount')}</Text>
                   <Pressable onPress={() => router.push('/(auth)/login')}>

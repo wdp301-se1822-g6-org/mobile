@@ -4,13 +4,14 @@ import { Colors } from '@/constants/Colors';
 import {
   useAvailableSlots,
   useCreateOrder,
+  useOrders,
   usePreviewOrder,
 } from '@/hooks/booking/useBooking';
 import { useServiceTypes } from '@/hooks/useServiceTypes';
 import { useVehicles } from '@/hooks/vehicle/useVehicle';
 import { useVouchers } from '@/hooks/voucher/useVoucher';
-import { useT } from '@/i18n/useT';
-import { PaymentMethod, PreviewOrderResponse } from '@/types/booking';
+import { useLocale, useT } from '@/i18n/useT';
+import { Order, PaymentMethod, PreviewOrderResponse } from '@/types/booking';
 import { ServiceType } from '@/types/service';
 import { Vehicle } from '@/types/vehicle';
 import { Voucher } from '@/types/voucher';
@@ -39,8 +40,82 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
 type Step = 'service' | 'vehicle' | 'slot' | 'confirm';
+type BookingCreateIssue =
+  | 'active_order_limit'
+  | 'vehicle_overlap'
+  | 'slot_unavailable';
 
 const STEPS: Step[] = ['vehicle', 'service', 'slot', 'confirm'];
+const MAX_ACTIVE_ORDERS = 3;
+
+function bookingCreateIssue(
+  error: unknown,
+  hasKnownVehicleOverlap: boolean,
+): BookingCreateIssue | undefined {
+  const response = (
+    error as {
+      response?: {
+        status?: number;
+        data?: { message?: string | string[] };
+      };
+    }
+  ).response;
+
+  const rawMessage = response?.data?.message;
+  const message = (Array.isArray(rawMessage) ? rawMessage.join(' ') : rawMessage ?? '')
+    .toLowerCase()
+    .trim();
+  if (
+    message.includes('active orders') &&
+    (message.includes('limit') || message.includes('already have'))
+  ) {
+    return 'active_order_limit';
+  }
+  const mentionsVehicle =
+    message.includes('vehicle') ||
+    message.includes('license plate') ||
+    message.includes('biển số') ||
+    /(^|\s)xe(\s|$)/.test(message);
+  const mentionsOverlap =
+    message.includes('overlap') ||
+    message.includes('already booked') ||
+    message.includes('already has') ||
+    message.includes('active booking') ||
+    message.includes('trùng') ||
+    message.includes('đã có lịch');
+
+  if (hasKnownVehicleOverlap || (mentionsVehicle && mentionsOverlap)) {
+    return 'vehicle_overlap';
+  }
+  if (response?.status === 409) return 'slot_unavailable';
+  return undefined;
+}
+
+function isActiveOrder(order: Order): boolean {
+  return !['completed', 'cancelled', 'no_show'].includes(order.status);
+}
+
+function hasOverlappingVehicleOrder(
+  orders: Order[],
+  vehicleId: string,
+  scheduledAt: string,
+  durationMinutes: number,
+): boolean {
+  const requestedStart = new Date(scheduledAt).getTime();
+  const requestedEnd =
+    requestedStart + Math.max(durationMinutes, 1) * 60_000;
+
+  return orders.some((order) => {
+    if (order.vehicleId !== vehicleId || !isActiveOrder(order)) {
+      return false;
+    }
+
+    const existingStart = new Date(order.scheduledAt).getTime();
+    const existingEnd =
+      existingStart + Math.max(order.estimatedMinutes ?? 1, 1) * 60_000;
+    return requestedStart < existingEnd && existingStart < requestedEnd;
+  });
+}
 
 function StepIndicator({
   current,
@@ -239,6 +314,7 @@ function PriceSummary({
 
 export default function NewBookingScreen() {
   const t = useT();
+  const locale = useLocale();
   const { serviceId, vehicleId } = useLocalSearchParams<{
     serviceId?: string;
     vehicleId?: string;
@@ -254,9 +330,11 @@ export default function NewBookingScreen() {
   const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [previewFailed, setPreviewFailed] = useState(false);
+  const [checkingConflict, setCheckingConflict] = useState(false);
 
   const { data: services, isLoading: loadingServices } = useServiceTypes();
   const { data: vehicles, isLoading: loadingVehicles } = useVehicles();
+  const { data: orders = [], refetch: refetchOrders } = useOrders();
   const { data: vouchers } = useVouchers('unused');
   const { mutateAsync: createOrder, isPending: creating } = useCreateOrder();
   const {
@@ -399,8 +477,73 @@ export default function NewBookingScreen() {
   };
 
   const handleConfirm = async () => {
-    if (!service || !selectedVehicle || !selectedSlot) return;
+    if (
+      !service ||
+      !selectedVehicle ||
+      !selectedSlot ||
+      checkingConflict ||
+      creating
+    ) {
+      return;
+    }
+
+    const scheduledTime = new Date(selectedSlot).toLocaleString(
+      locale === 'vi' ? 'vi-VN' : 'en-US',
+      {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      },
+    );
+    const showVehicleConflict = () =>
+      Toast.show({
+        type: 'twoLineError',
+        text1: t('bookingNew.vehicleConflictTitle'),
+        text2: t('bookingNew.vehicleConflictSub', {
+          plate: selectedVehicle.licensePlate,
+          time: scheduledTime,
+        }),
+      });
+    const showActiveOrderLimit = () =>
+      Toast.show({
+        type: 'twoLineError',
+        text1: t('bookingNew.activeOrderLimitTitle'),
+        text2: t('bookingNew.activeOrderLimitSub'),
+      });
+    const durationMinutes =
+      selectedPricing?.duration ?? service.durationMinutes;
+    let latestOrders = orders;
+
+    setCheckingConflict(true);
     try {
+      // Refresh before creating so a vehicle overlap is explained correctly
+      // even when the backend returns a generic error instead of a detailed 409.
+      try {
+        const refreshed = await refetchOrders();
+        latestOrders = refreshed.data ?? latestOrders;
+      } catch {
+        // Cached orders can still identify the conflict; the create endpoint
+        // remains the final authority when refreshing the list is unavailable.
+      }
+      if (
+        latestOrders.filter(isActiveOrder).length >= MAX_ACTIVE_ORDERS
+      ) {
+        showActiveOrderLimit();
+        return;
+      }
+      if (
+        hasOverlappingVehicleOrder(
+          latestOrders,
+          selectedVehicle.id,
+          selectedSlot,
+          durationMinutes,
+        )
+      ) {
+        showVehicleConflict();
+        return;
+      }
+
       const order = await createOrder({
         serviceTypeId: service.id,
         vehicleId: selectedVehicle.id,
@@ -418,12 +561,42 @@ export default function NewBookingScreen() {
       }
 
       router.replace({ pathname: '/booking/[id]', params: { id: order.id } });
-    } catch {
+    } catch (error) {
+      const knownVehicleOverlap = hasOverlappingVehicleOrder(
+        latestOrders,
+        selectedVehicle.id,
+        selectedSlot,
+        durationMinutes,
+      );
+      const issue = bookingCreateIssue(error, knownVehicleOverlap);
+      if (issue === 'active_order_limit') {
+        showActiveOrderLimit();
+        return;
+      }
+
+      if (issue === 'vehicle_overlap') {
+        showVehicleConflict();
+        return;
+      }
+
+      if (issue === 'slot_unavailable') {
+        setSelectedSlot(null);
+        setStep('slot');
+        Toast.show({
+          type: 'error',
+          text1: t('bookingNew.slotConflictTitle'),
+          text2: t('bookingNew.slotConflictSub'),
+        });
+        return;
+      }
+
       Toast.show({
         type: 'error',
         text1: t('bookingNew.failedTitle'),
         text2: t('bookingNew.failedSub'),
       });
+    } finally {
+      setCheckingConflict(false);
     }
   };
 
@@ -1341,7 +1514,7 @@ export default function NewBookingScreen() {
                   : t('bookingNew.confirm')
               }
               onPress={handleConfirm}
-              loading={creating}
+              loading={checkingConflict || creating}
             />
           </Animated.View>
         )}

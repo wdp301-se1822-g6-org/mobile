@@ -1,6 +1,18 @@
-export type OrderStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
+export type OrderStatus =
+  | 'pending'
+  | 'pending_payment'
+  | 'confirmed'
+  | 'checked_in'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled'
+  | 'no_show';
 export type PaymentMethod = 'cash' | 'online';
-export type PaymentStatus = 'unpaid' | 'paid' | 'refunded';
+export type PaymentStatus =
+  | 'unpaid'
+  | 'paid'
+  | 'refunded'
+  | 'no_payment_required';
 
 export type Order = {
   id: string;
@@ -41,7 +53,14 @@ export type CreateOrderDto = {
   paymentMethod: PaymentMethod;
 };
 
-export type RescheduleOrderDto = { scheduledAt: string };
+export type RescheduleOrderDto = {
+  scheduledAt: string;
+  /**
+   * Optional per the API contract. When omitted, the server selects a shift
+   * with capacity that covers scheduledAt, matching the create-order flow.
+   */
+  staffShiftId?: string;
+};
 
 export type PreviewOrderDto = {
   serviceTypeId: string;

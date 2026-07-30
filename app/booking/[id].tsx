@@ -6,14 +6,15 @@ import { useT } from '@/i18n/useT';
 import { useCancelOrder, useOrder } from '@/hooks/booking/useBooking';
 import { useOrderFeedback } from '@/hooks/feedback/useFeedback';
 import { useVehicles } from '@/hooks/vehicle/useVehicle';
-import { OrderStatus } from '@/types/booking';
+import { OrderStatus, PaymentStatus } from '@/types/booking';
 import { localizedVehicleTypeName } from '@/utils/vehicleTypeLabel';
 import { describeDiscountReason } from '@/utils/discount';
 import { formatPrice } from '@/utils/formatters';
 import { describeCancelReason } from '@/utils/orderReason';
+import { vehicleIcon } from '@/utils/vehicleIcon';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { ArrowLeft, Calendar, Car, CheckCircle, Clock, CreditCard, Droplets, Hourglass, Sparkles, Star } from 'lucide-react-native';
+import { ArrowLeft, Calendar, CheckCircle, Clock, CreditCard, Droplets, Hourglass, Sparkles, Star } from 'lucide-react-native';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,7 +27,14 @@ function ProgressTracker({ status }: { status: OrderStatus }) {
     { key: 'in_progress' as const, label: t('bookingDetail.stepWashing'),   icon: Droplets },
     { key: 'completed' as const,   label: t('bookingDetail.stepDone'),      icon: Sparkles },
   ];
-  const order: OrderStatus[] = ['pending', 'confirmed', 'in_progress', 'completed'];
+  const order: OrderStatus[] = [
+    'pending',
+    'pending_payment',
+    'confirmed',
+    'checked_in',
+    'in_progress',
+    'completed',
+  ];
   const currentIdx = order.indexOf(status);
 
   return (
@@ -89,10 +97,15 @@ function ProgressTracker({ status }: { status: OrderStatus }) {
   );
 }
 
-function paymentLabel(t: ReturnType<typeof useT>, method: 'cash' | 'online', status: 'unpaid' | 'paid' | 'refunded') {
+function paymentLabel(
+  t: ReturnType<typeof useT>,
+  method: 'cash' | 'online',
+  status: PaymentStatus,
+) {
   const m = method === 'cash' ? t('payment.methodCash') : t('payment.methodOnline');
   const s = status === 'paid' ? t('payment.paid')
           : status === 'refunded' ? t('payment.refunded')
+          : status === 'no_payment_required' ? t('payment.no_payment_required')
           : t('payment.unpaid');
   return `${m} · ${s}`;
 }
@@ -137,11 +150,11 @@ export default function BookingDetailScreen() {
   if (isLoading) return <LoadingSpinner />;
   if (!order) return null;
 
-  const canCancel = ['pending', 'confirmed'].includes(order.status);
+  const canCancel = ['pending', 'pending_payment', 'confirmed'].includes(order.status);
   const isCompleted = order.status === 'completed';
   const isNoShow = order.status === 'no_show';
   const cancelReasonText = describeCancelReason(order.cancelReason, t);
-  const showTracker = ['confirmed', 'in_progress', 'completed'].includes(order.status);
+  const showTracker = ['confirmed', 'checked_in', 'in_progress', 'completed'].includes(order.status);
   const needsOnlinePayment =
     order.paymentMethod === 'online' &&
     order.paymentStatus === 'unpaid' &&
@@ -155,6 +168,7 @@ export default function BookingDetailScreen() {
   const vehicleLabel = vehicleTypeName
     ? `${licensePlate} · ${localizedVehicleTypeName(vehicleTypeName, t)}`
     : licensePlate;
+  const VehicleDetailIcon = vehicleIcon(vehicleTypeName);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -215,7 +229,7 @@ export default function BookingDetailScreen() {
 
           <View style={{ gap: 12 }}>
             {[
-              { icon: <Car size={16} color={Colors.textSecondary} strokeWidth={1.5} />,        label: t('bookingDetail.vehicle'), value: vehicleLabel },
+              { icon: <VehicleDetailIcon size={16} color={Colors.textSecondary} strokeWidth={1.5} />, label: t('bookingDetail.vehicle'), value: vehicleLabel },
               { icon: <Calendar size={16} color={Colors.textSecondary} strokeWidth={1.5} />,   label: t('bookingDetail.date'),    value: date.toLocaleDateString(undefined, { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) },
               { icon: <Clock size={16} color={Colors.textSecondary} strokeWidth={1.5} />,      label: t('bookingDetail.time'),    value: `${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}${order.estimatedMinutes ? ` (~${order.estimatedMinutes} ${t('common.minutes')})` : ''}` },
               { icon: <CreditCard size={16} color={Colors.textSecondary} strokeWidth={1.5} />, label: t('bookingDetail.payment'), value: paymentLabel(t, order.paymentMethod, order.paymentStatus) },

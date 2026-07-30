@@ -1,6 +1,7 @@
 import { Colors } from '@/constants/Colors';
 import { WorkOrder, WorkOrderStatus } from '@/types/work-order';
-import { Car, MapPin, Ticket, User, UserCog } from 'lucide-react-native';
+import { vehicleIcon } from '@/utils/vehicleIcon';
+import { MapPin, Ticket, User, UserCog } from 'lucide-react-native';
 import { Text, View } from 'react-native';
 import { PressableCard } from '../ui/PressableCard';
 
@@ -22,6 +23,7 @@ export function WorkOrderCard({
 }) {
   const s = STATUS_MAP[workOrder.status] ?? STATUS_MAP.waiting;
   const vehicle = workOrder.vehicleSnapshot ?? {};
+  const VehicleIcon = vehicleIcon(vehicle.vehicleTypeName);
   const washer = washerName ?? workOrder.assignedWasherName;
 
   return (
@@ -48,7 +50,7 @@ export function WorkOrderCard({
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 6 }}>
-        <Car size={14} color={Colors.textSecondary} strokeWidth={1.5} />
+        <VehicleIcon size={14} color={Colors.textSecondary} strokeWidth={1.5} />
         <Text style={{ fontSize: 13, fontWeight: '700', color: Colors.textPrimary, letterSpacing: 0.5 }}>
           {vehicle.plate ?? '—'}
         </Text>
