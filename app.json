@@ -33,12 +33,19 @@
         }
       }
     },
+    "expo": {
+      "userInterfaceStyle": "automatic"
+    },
     "web": {
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/favicon-wave.png"
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-web-browser"
+    ],
     "experiments": {
       "typedRoutes": true
     },
