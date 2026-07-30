@@ -6,7 +6,7 @@ import { useT } from '@/i18n/useT';
 import { useLoyaltyAccount, useTierConfigs } from '@/hooks/loyalty/useLoyalty';
 import { TierName, WASHES_PER_VOUCHER } from '@/types/loyalty';
 import { router } from 'expo-router';
-import { Calendar, ChevronRight, Gift, Percent, Star, Ticket } from 'lucide-react-native';
+import { ArrowLeft, Calendar, ChevronRight, Gift, Percent, Star, Ticket } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,7 +28,13 @@ export default function LoyaltyScreen() {
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        <Animated.View entering={FadeInDown.springify()} style={{ marginBottom: 20 }}>
+        <Animated.View
+          entering={FadeInDown.springify()}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}
+        >
+          <Pressable onPress={() => router.back()} hitSlop={8} style={{ padding: 4, marginLeft: -4 }}>
+            <ArrowLeft size={22} color={Colors.textPrimary} strokeWidth={1.5} />
+          </Pressable>
           <Text style={{ fontSize: 22, fontWeight: '700', color: Colors.textPrimary }}>{t('loyalty.title')}</Text>
         </Animated.View>
 

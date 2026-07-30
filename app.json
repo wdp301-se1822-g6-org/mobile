@@ -14,10 +14,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
-      "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Ứng dụng cần truy cập vị trí để chọn tọa độ nông trại"
-      }
+      "supportsTablet": true
     },
     "android": {
       "permissions": [
@@ -43,16 +40,7 @@
       "output": "static",
       "favicon": "./assets/images/favicon-wave.png"
     },
-    "plugins": [
-      "expo-router",
-      [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "Allow $(EXECUTABLE_NAME) to access your location"
-        }
-      ],
-      "expo-maps"
-    ],
+    "plugins": ["expo-router"],
     "experiments": {
       "typedRoutes": true
     },

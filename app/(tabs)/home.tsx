@@ -339,7 +339,7 @@ function HeroCard({
         </View>
 
         <Pressable
-          onPress={() => router.push('/(tabs)/loyalty')}
+          onPress={() => router.push('/loyalty')}
           style={{
             backgroundColor: Colors.white,
             paddingLeft: 14,

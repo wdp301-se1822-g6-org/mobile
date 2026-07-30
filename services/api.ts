@@ -36,6 +36,18 @@ export const axiosInstance = axios.create({
   timeout: 10000,
 });
 
+// Refresh được nới rộng hơn timeout chung: BE xoay token *trước* khi trả lời, nên
+// một lần timeout giữa đường nghĩa là token cũ đã bị revoke mà cặp mới không ai
+// lưu -> phiên chết ở request kế tiếp. Thà chờ lâu hơn còn hơn mất phiên.
+const REFRESH_TIMEOUT_MS = 20000;
+
+// Log ở cả bản release (Expo không strip console) để soi được vì sao phiên chết
+// trên máy thật: adb logcat -s ReactNativeJS:V
+// Tuyệt đối không log giá trị token, chỉ log độ dài/sự hiện diện.
+function authLog(...args: unknown[]) {
+  console.warn('[auth]', ...args);
+}
+
 axiosInstance.interceptors.request.use((config: RetryableConfig) => {
   const { accessToken } = useAuthStore.getState();
   const isPublic = PUBLIC_PATHS.some((p) => config.url?.includes(p));
@@ -55,13 +67,38 @@ async function refreshAccessToken(): Promise<string> {
   const { refreshToken, authUser } = useAuthStore.getState();
   if (!refreshToken) throw new Error('No refresh token');
 
+  const url = `${axiosInstance.defaults.baseURL}${API.auth.refresh}`;
+  authLog('refreshing', url, 'refreshToken len', refreshToken.length);
+
   // Bare axios (bypasses this instance's interceptors) so that a 401 on the
   // refresh call itself can never recurse back into the refresh logic.
   const { data } = await axios.post<RefreshResponse>(
-    `${axiosInstance.defaults.baseURL}${API.auth.refresh}`,
+    url,
     { refreshToken },
-    { headers: { 'Content-Type': 'application/json' }, timeout: 10000 },
+    { headers: { 'Content-Type': 'application/json' }, timeout: REFRESH_TIMEOUT_MS },
   );
+
+  // 200 nhưng không có accessToken ở top level = shape không như mình nghĩ (BE bọc
+  // trong envelope, hoặc đặt tên khác). Nếu bỏ qua, store nhận accessToken
+  // undefined mà isLoggedIn vẫn true: mọi request sau đó bay đi không header, và
+  // lần refresh kế tiếp trình ra refreshToken cũ đã bị revoke -> logout, đúng như
+  // triệu chứng "hết token là đăng xuất". Chặn tại đây và in ra shape thật.
+  if (!data?.accessToken) {
+    throw new Error(
+      `Refresh 200 but no accessToken in body; keys=${JSON.stringify(Object.keys(data ?? {}))}`,
+    );
+  }
+
+  // BE của mình luôn xoay và trả về refreshToken mới. Thiếu nó = shape sai, và
+  // fallback dưới đây sẽ giữ lại token cũ *đã bị revoke* -> phiên chết lặng lẽ ở
+  // vòng refresh sau. Không throw vì access token mới vẫn dùng được ngay, nhưng
+  // phải hét lên để log chỉ đúng thủ phạm thay vì báo 401 mơ hồ một phút sau.
+  if (!data.refreshToken) {
+    authLog(
+      'CẢNH BÁO: refresh không trả refreshToken mới, đang giữ token cũ (có thể đã bị revoke);',
+      `keys=${JSON.stringify(Object.keys(data))}`,
+    );
+  }
 
   // Some refresh endpoints return tokens only; fall back to what's cached so a
   // token-only response doesn't wipe authUser or the refresh token.
@@ -74,6 +111,7 @@ async function refreshAccessToken(): Promise<string> {
   useAuthStore
     .getState()
     .login(data.accessToken, data.refreshToken ?? refreshToken, user);
+  authLog('refreshed ok', 'rotated refreshToken:', !!data.refreshToken);
   return data.accessToken;
 }
 
@@ -85,7 +123,9 @@ async function refreshAccessToken(): Promise<string> {
 function isTransientRefreshError(err: unknown): boolean {
   if (!axios.isAxiosError(err)) return false;
   const status = err.response?.status;
-  return status === undefined || status >= 500;
+  // 408 (request timeout) và 429 (rate limit) là BE chưa xét tới token, không phải
+  // từ chối nó — xếp cùng nhóm mất mạng/5xx để không giết phiên oan.
+  return status === undefined || status === 408 || status === 429 || status >= 500;
 }
 
 axiosInstance.interceptors.response.use(
@@ -120,9 +160,17 @@ axiosInstance.interceptors.response.use(
       original.headers.Authorization = `Bearer ${newToken}`;
       return axiosInstance(original);
     } catch (refreshErr) {
+      const transient = isTransientRefreshError(refreshErr);
+      authLog(
+        transient ? 'refresh failed (transient, giữ phiên)' : 'refresh failed -> LOGOUT',
+        'on', original.url,
+        axios.isAxiosError(refreshErr)
+          ? `status=${refreshErr.response?.status} code=${refreshErr.code} body=${JSON.stringify(refreshErr.response?.data)}`
+          : String(refreshErr),
+      );
       // Refresh token missing/expired/rejected — end the session. Lỗi tạm thời
       // (offline, timeout, 5xx) thì giữ session, caller tự hiện lỗi mạng.
-      if (!isTransientRefreshError(refreshErr)) {
+      if (!transient) {
         useAuthStore.getState().logout();
       }
       return Promise.reject(refreshErr);

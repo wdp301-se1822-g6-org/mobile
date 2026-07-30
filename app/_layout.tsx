@@ -1,11 +1,14 @@
+import { GestureStack } from '@/components/navigation/GestureStack';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { TransitionPresets } from '@react-navigation/stack';
 import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
-import { router, Stack, useSegments } from 'expo-router';
+import { router, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import Toast from 'react-native-toast-message';
 import '../global.css';
@@ -66,29 +69,51 @@ export default function RootLayout() {
   if (!loaded) return null;
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <RealtimeBridge />
-      <AuthGuard />
-      <Stack screenOptions={{ headerShown: false, gestureEnabled: true }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="(washer)" />
-        <Stack.Screen name="(cashier)" />
-        <Stack.Screen name="check-in/[id]" />
-        <Stack.Screen name="booking/[id]" />
-        <Stack.Screen name="booking/new" />
-        <Stack.Screen name="booking/reschedule" />
-        <Stack.Screen name="vehicles/index" />
-        <Stack.Screen name="vehicles/new" />
-        <Stack.Screen name="vouchers/index" />
-        <Stack.Screen name="loyalty/transactions" />
-        <Stack.Screen name="chat/index" />
-        <Stack.Screen name="work-order/[id]" />
-        <Stack.Screen name="feedback/[orderId]" />
-        <Stack.Screen name="profile" />
-      </Stack>
-      <Toast />
-    </QueryClientProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <RealtimeBridge />
+        <AuthGuard />
+        <GestureStack
+          screenOptions={{
+            headerShown: false,
+            // JS Stack mặc định tắt gesture trên Android — phải bật tay.
+            gestureEnabled: true,
+            ...TransitionPresets.SlideFromRightIOS,
+          }}
+        >
+          <GestureStack.Screen name="index" options={{ gestureEnabled: false }} />
+          {/* Logout điều hướng về đây bằng router.replace. Để nguyên animation thì
+              màn cũ còn trượt ~500ms (SlideFromRightIOS là spring, không phải
+              timing), trong khi useLogout xoá store ở mốc 400ms — user kịp thấy
+              avatar lật thành "?" giữa lúc trượt. Bỏ animation là hết cửa sổ đó,
+              khỏi phải canh LOGOUT_TEARDOWN_DELAY_MS theo đường cong spring.
+              Vào welcome cũng là reset phiên, không nên trượt như đi tới. */}
+          <GestureStack.Screen
+            name="(auth)"
+            options={{ gestureEnabled: false, animation: 'none' }}
+          />
+          {/* Ba nhóm tab tự bắt vuốt ngang bằng pager. Bật gesture ở tầng Stack
+              nữa thì hai bên tranh nhau cùng một cú kéo. */}
+          <GestureStack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
+          <GestureStack.Screen name="(washer)" options={{ gestureEnabled: false }} />
+          <GestureStack.Screen name="(cashier)" options={{ gestureEnabled: false }} />
+          <GestureStack.Screen name="check-in/[id]" />
+          <GestureStack.Screen name="booking/[id]" />
+          <GestureStack.Screen name="booking/new" />
+          <GestureStack.Screen name="booking/reschedule" />
+          <GestureStack.Screen name="vehicles/index" />
+          <GestureStack.Screen name="vehicles/new" />
+          <GestureStack.Screen name="vouchers/index" />
+          <GestureStack.Screen name="loyalty/index" />
+          <GestureStack.Screen name="loyalty/transactions" />
+          <GestureStack.Screen name="schedule" />
+          <GestureStack.Screen name="chat/index" />
+          <GestureStack.Screen name="work-order/[id]" />
+          <GestureStack.Screen name="feedback/[orderId]" />
+          <GestureStack.Screen name="profile" />
+        </GestureStack>
+        <Toast />
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
