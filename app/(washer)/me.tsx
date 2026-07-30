@@ -143,7 +143,7 @@ export default function WasherMeScreen() {
         }}
       >
         <Pressable
-          onPress={() => router.push('/(washer)/schedule')}
+          onPress={() => router.push('/schedule')}
           style={{
             flexDirection: 'row',
             alignItems: 'center',

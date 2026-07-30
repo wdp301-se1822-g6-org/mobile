@@ -3,8 +3,10 @@ import { LanguageToggleBar } from '@/components/i18n/LanguageToggle';
 import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/Colors';
 import { useT } from '@/i18n/useT';
+import { warmUpApi } from '@/services/health.service';
 import { router } from 'expo-router';
 import { Droplets, Shield, Star } from 'lucide-react-native';
+import { useEffect } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +19,10 @@ const textShadow = {
 
 export default function WelcomeScreen() {
   const t = useT();
+
+  // Đánh thức lambda ngay từ màn đầu tiên, để lúc user gõ xong mật khẩu ở màn
+  // login thì BE đã ấm. Xem warmUpApi().
+  useEffect(() => { warmUpApi(); }, []);
 
   const FEATURES = [
     { icon: <Droplets size={20} color={Colors.white} strokeWidth={1.5} />, text: t('auth.featureBooking') },

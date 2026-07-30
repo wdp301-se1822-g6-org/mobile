@@ -3,7 +3,8 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Colors } from '@/constants/Colors';
 import { useWasherSchedule } from '@/hooks/washer/useWasher';
 import { BookingStatus, WasherScheduleItem } from '@/services/washer.service';
-import { Calendar, Car, Clock, MapPin, User } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { ArrowLeft, Calendar, Car, Clock, MapPin, User } from 'lucide-react-native';
 import { useState } from 'react';
 import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -210,9 +211,19 @@ export default function ScheduleScreen() {
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.background }}>
       {/* Header */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}>
-        <Text style={{ fontSize: 22, fontWeight: '700', color: Colors.textPrimary }}>Lịch làm việc</Text>
-        <Text style={{ fontSize: 13, color: Colors.textSecondary, marginTop: 2 }}>{dayLabel}</Text>
+      <View
+        style={{
+          flexDirection: 'row', alignItems: 'center', gap: 12,
+          paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12,
+        }}
+      >
+        <Pressable onPress={() => router.back()} hitSlop={8} style={{ padding: 4, marginLeft: -4 }}>
+          <ArrowLeft size={22} color={Colors.textPrimary} strokeWidth={1.5} />
+        </Pressable>
+        <View>
+          <Text style={{ fontSize: 22, fontWeight: '700', color: Colors.textPrimary }}>Lịch làm việc</Text>
+          <Text style={{ fontSize: 13, color: Colors.textSecondary, marginTop: 2 }}>{dayLabel}</Text>
+        </View>
       </View>
 
       {/* Date picker */}

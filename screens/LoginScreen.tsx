@@ -12,11 +12,12 @@ import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/Colors';
 import { useLogin } from '@/hooks/auth/useAuth';
 import { useT } from '@/i18n/useT';
+import { warmUpApi } from '@/services/health.service';
 import { localizedAuthError } from '@/utils/authError';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react-native';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -33,6 +34,10 @@ export default function LoginScreen() {
   const emailField = fieldProps('email');
   const passwordField = fieldProps('password');
   const passwordRef = useRef<TextInput>(null);
+
+  // Vào được đây mà chưa qua welcome (deep link, hoặc quay lại sau một lúc lâu)
+  // thì lambda có thể đã ngủ lại — hâm thêm lần nữa, ping thứ hai gần như free.
+  useEffect(() => { warmUpApi(); }, []);
 
   const loginSchema = useMemo(
     () =>

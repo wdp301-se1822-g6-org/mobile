@@ -174,6 +174,7 @@ export const translations = {
       tomorrow: 'Ngày mai',
       goldenHourHint:
         'Giờ Vàng - đặt vào khung giờ này được giảm giá theo hạng thành viên',
+      goldenHourTag: 'Giờ vàng',
       addVehicle: '+ Thêm xe mới',
       noSlots: 'Không có khung giờ trống',
       confirm: 'Xác nhận đặt lịch',
@@ -195,6 +196,7 @@ export const translations = {
       onlineSub: 'PayOS / VietQR',
       basePrice: 'Giá gốc',
       discount: 'Giảm giá',
+      goldenHourDiscount: 'Khung giờ vàng · giảm {d}%',
       total: 'Tổng thanh toán',
       previewFailed: 'Chưa tính được tổng tiền',
       previewRetry: 'Thử lại',
@@ -654,6 +656,7 @@ export const translations = {
       tomorrow: 'Tomorrow',
       goldenHourHint:
         'Yellow slots are Golden Hours - book one to get a discount',
+      goldenHourTag: 'Golden hour',
       addVehicle: '+ Add a new vehicle',
       noSlots: 'No open slots in the next 3 days',
       confirm: 'Confirm booking',
@@ -675,6 +678,7 @@ export const translations = {
       onlineSub: 'PayOS / VietQR',
       basePrice: 'Base price',
       discount: 'Discount',
+      goldenHourDiscount: 'Golden hour · {d}% off',
       total: 'Total',
       previewFailed: 'Could not calculate the total',
       previewRetry: 'Retry',
