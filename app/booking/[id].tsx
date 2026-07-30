@@ -126,7 +126,10 @@ export default function BookingDetailScreen() {
         text: t('bookingDetail.cancelBtn'), style: 'destructive',
         onPress: async () => {
           try {
-            await cancelOrder(id);
+            await cancelOrder({
+              id,
+              dto: { reason: 'customer_cancelled' },
+            });
             Toast.show({ type: 'success', text1: t('bookingDetail.cancelOk') });
             router.back();
           } catch {

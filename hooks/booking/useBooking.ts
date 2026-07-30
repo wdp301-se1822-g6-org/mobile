@@ -1,5 +1,5 @@
 import { bookingService } from '@/services/booking.service';
-import { CreateOrderDto, RescheduleOrderDto } from '@/types/booking';
+import { CancelOrderDto, CreateOrderDto, RescheduleOrderDto } from '@/types/booking';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export const ORDERS_KEY = ['orders'] as const;
@@ -56,8 +56,9 @@ export function useRescheduleOrder() {
 export function useCancelOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => bookingService.cancelOrder(id),
-    onSuccess: (_, id) => {
+    mutationFn: ({ id, dto }: { id: string; dto: CancelOrderDto }) =>
+      bookingService.cancelOrder(id, dto),
+    onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: ORDERS_KEY });
       qc.invalidateQueries({ queryKey: ['orders', id] });
     },

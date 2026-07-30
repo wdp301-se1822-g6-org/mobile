@@ -62,6 +62,10 @@ export type RescheduleOrderDto = {
   staffShiftId?: string;
 };
 
+export type CancelOrderDto = {
+  reason?: string;
+};
+
 export type PreviewOrderDto = {
   serviceTypeId: string;
   vehicleTypeId: string;

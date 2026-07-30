@@ -1,5 +1,5 @@
 import { API } from '@/constants/endpoints';
-import { AvailableSlot, CreateOrderDto, Order, PreviewOrderDto, PreviewOrderResponse, RescheduleOrderDto } from '@/types/booking';
+import { AvailableSlot, CancelOrderDto, CreateOrderDto, Order, PreviewOrderDto, PreviewOrderResponse, RescheduleOrderDto } from '@/types/booking';
 import { axiosInstance } from './api';
 
 // Money comes back as strings, and the API names an order's amounts
@@ -51,6 +51,6 @@ export const bookingService = {
   rescheduleOrder: (id: string, dto: RescheduleOrderDto) =>
     axiosInstance.patch<Order>(API.me.orderReschedule(id), dto).then((r) => r.data),
 
-  cancelOrder: (id: string) =>
-    axiosInstance.patch<Order>(API.me.orderCancel(id)).then((r) => r.data),
+  cancelOrder: (id: string, dto: CancelOrderDto) =>
+    axiosInstance.patch<Order>(API.me.orderCancel(id), dto).then((r) => r.data),
 };
