@@ -15,6 +15,10 @@ const PUBLIC_PATHS = [
   '/auth/refresh',
   '/auth/otp/send',
   '/auth/otp/verify',
+  // Ping hâm lambda (xem services/health.service.ts). Không cần token, và tuyệt
+  // đối không được phép chạm vào phiên: một cú ping tối ưu hoá mà lại đi refresh
+  // hay logout thì tệ hơn là không ping.
+  '/health',
 ];
 
 // Vẫn gửi kèm Authorization, nhưng 401 thì để fail chứ không refresh.
@@ -40,6 +44,14 @@ export const axiosInstance = axios.create({
 // một lần timeout giữa đường nghĩa là token cũ đã bị revoke mà cặp mới không ai
 // lưu -> phiên chết ở request kế tiếp. Thà chờ lâu hơn còn hơn mất phiên.
 const REFRESH_TIMEOUT_MS = 20000;
+
+// Cùng lý lẽ nới rộng, nhưng vì lý do khác: BE chạy serverless trên Vercel nên
+// lambda ngủ sau một lúc không ai gọi. Với app chưa đăng nhập, /auth/login là
+// request đầu tiên chạm DB -> nó trả tiền cho cả boot lambda + mở connection,
+// thường 5-15s, dư sức vượt timeout chung 10s. Mutation của React Query lại
+// không retry, nên user thấy đúng triệu chứng "login lần đầu lỗi, bấm lại thì
+// vào ngay". Chờ lâu hơn vẫn tốt hơn là bắt user bấm hai lần.
+export const AUTH_TIMEOUT_MS = 30000;
 
 // Log ở cả bản release (Expo không strip console) để soi được vì sao phiên chết
 // trên máy thật: adb logcat -s ReactNativeJS:V
@@ -143,12 +155,23 @@ axiosInstance.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // Không có _tokenAtSend = request rời app lúc store đang rỗng, nên nó 401 vì
+    // THIẾU credential chứ không phải vì token hết hạn — refresh không cứu được gì.
+    // Nguy hơn: undefined luôn falsy nên nó lọt khỏi guard so-sánh-token bên dưới,
+    // đi thẳng vào refresh. Một query của phiên cũ 401 về *sau* khi user vừa login
+    // (React Query retry 3 lần, backoff ~1s/2s/4s) sẽ đốt một lượt xoay refresh
+    // token vừa được cấp, và bất kỳ 4xx ở lượt đó lại logout() đúng cái phiên vừa
+    // tạo -> "đăng nhập lần đầu xong bị đá ra welcome ngay".
+    if (!original._tokenAtSend) {
+      return Promise.reject(error);
+    }
+
     original._retry = true;
 
     // Request bay đi với token cũ có thể 401 về *sau* khi một lượt refresh khác
     // đã xong. Store đã có token mới thì phát lại luôn, đừng xoay thêm lần nữa.
     const current = useAuthStore.getState().accessToken;
-    if (current && original._tokenAtSend && current !== original._tokenAtSend) {
+    if (current && current !== original._tokenAtSend) {
       original.headers.Authorization = `Bearer ${current}`;
       return axiosInstance(original);
     }

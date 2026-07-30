@@ -39,6 +39,7 @@ export const API = {
     // GET list of work orders, and POST { orderId, checkinPhotos } to check an order in
     workOrders: '/admin/work-orders',
   },
+  health: '/health',
   serviceTypes: '/service-types',
   serviceType: (id: string) => `/service-types/${id}`,
   vehicleTypes: '/vehicle-types',

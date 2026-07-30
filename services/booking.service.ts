@@ -40,8 +40,13 @@ export const bookingService = {
   createOrder: (dto: CreateOrderDto) =>
     axiosInstance.post<Order>(API.me.orders, dto).then((r) => r.data),
 
+  // TEMP debug: what the API actually returns for a golden-hour slot. Remove once
+  // the discount-not-showing report is settled.
   previewOrder: (dto: PreviewOrderDto) =>
-    axiosInstance.post<RawPreviewOrderResponse>(API.me.orderPreview, dto).then((r) => normalizePreview(r.data)),
+    axiosInstance.post<RawPreviewOrderResponse>(API.me.orderPreview, dto).then((r) => {
+      console.warn('[preview] req', JSON.stringify(dto), 'res', JSON.stringify(r.data));
+      return normalizePreview(r.data);
+    }),
 
   getAvailableSlots: (params: { serviceTypeId: string; vehicleTypeId: string; from: string; to: string }) =>
     axiosInstance.get<AvailableSlot[]>(API.me.orderSlots, { params }).then((r) => r.data),

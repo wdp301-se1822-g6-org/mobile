@@ -10,7 +10,7 @@ import { useServiceTypes } from '@/hooks/useServiceTypes';
 import { useVehicles } from '@/hooks/vehicle/useVehicle';
 import { useVouchers } from '@/hooks/voucher/useVoucher';
 import { useT } from '@/i18n/useT';
-import { PaymentMethod } from '@/types/booking';
+import { PaymentMethod, PreviewOrderResponse } from '@/types/booking';
 import { ServiceType } from '@/types/service';
 import { Vehicle } from '@/types/vehicle';
 import { Voucher } from '@/types/voucher';
@@ -112,6 +112,127 @@ function StepIndicator({
           </View>
         );
       })}
+    </View>
+  );
+}
+
+/**
+ * Giá gốc / giảm giá / tổng, dùng chung cho bước chọn giờ và bước xác nhận, để
+ * hai nơi không bao giờ hiển thị lệch nhau. Tổng luôn lấy từ preview của API —
+ * không có preview thì là "chưa biết" ('—'), tuyệt đối không rơi về giá gốc.
+ */
+function PriceSummary({
+  basePrice,
+  discountAmount,
+  discountLabel,
+  preview,
+  previewing,
+  previewFailed,
+  onRetry,
+}: {
+  basePrice: number;
+  discountAmount: number;
+  discountLabel: string;
+  preview?: PreviewOrderResponse;
+  previewing: boolean;
+  previewFailed: boolean;
+  onRetry: () => void;
+}) {
+  const t = useT();
+  return (
+    <View
+      style={{
+        backgroundColor: Colors.surface,
+        borderRadius: 16,
+        padding: 16,
+        gap: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 6,
+        elevation: 2,
+      }}
+    >
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <Text style={{ fontSize: 13, color: Colors.textSecondary }}>
+          {t('bookingNew.basePrice')}
+        </Text>
+        <Text style={{ fontSize: 13, color: Colors.textPrimary }}>
+          {formatPrice(basePrice)}
+        </Text>
+      </View>
+
+      {preview?.appliedDiscounts?.map((d, i) => (
+        <View
+          key={i}
+          style={{ flexDirection: 'row', justifyContent: 'space-between' }}
+        >
+          <Text style={{ fontSize: 13, color: Colors.textSecondary }}>
+            {d.label}
+          </Text>
+          <Text
+            style={{ fontSize: 13, color: Colors.success, fontWeight: '600' }}
+          >
+            -{formatPrice(d.amount)}
+          </Text>
+        </View>
+      ))}
+
+      {!preview?.appliedDiscounts?.length && discountAmount > 0 && (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={{ flex: 1, fontSize: 13, color: Colors.textSecondary }}>
+            {discountLabel}
+          </Text>
+          <Text
+            style={{ fontSize: 13, color: Colors.success, fontWeight: '600' }}
+          >
+            -{formatPrice(discountAmount)}
+          </Text>
+        </View>
+      )}
+
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          paddingTop: 8,
+          borderTopWidth: 1,
+          borderTopColor: Colors.border,
+        }}
+      >
+        <Text
+          style={{ fontSize: 15, fontWeight: '700', color: Colors.textPrimary }}
+        >
+          {t('bookingNew.total')}
+        </Text>
+        <Text
+          style={{ fontSize: 20, fontWeight: '800', color: Colors.primary }}
+        >
+          {previewing ? '...' : preview ? formatPrice(preview.finalPrice) : '—'}
+        </Text>
+      </View>
+
+      {previewFailed && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            marginTop: 4,
+          }}
+        >
+          <Text style={{ flex: 1, fontSize: 12, color: Colors.danger }}>
+            {t('bookingNew.previewFailed')}
+          </Text>
+          <Pressable onPress={onRetry} hitSlop={8}>
+            <Text
+              style={{ fontSize: 12, fontWeight: '700', color: Colors.primary }}
+            >
+              {t('bookingNew.previewRetry')}
+            </Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
@@ -240,10 +361,16 @@ export default function NewBookingScreen() {
     });
   }, [service?.id, selectedVehicle?.id, selectedSlot, selectedVoucher?.id]);
 
+  // Giá phải hiện ngay khi chọn được giờ, nên preview chạy từ bước 'slot'. Dùng cờ
+  // boolean thay vì `step` làm dependency: đi 'slot' -> 'confirm' cờ vẫn true nên
+  // effect không chạy lại, tránh gọi API lần hai cho cùng một bộ input.
+  const shouldPreview =
+    (step === 'slot' || step === 'confirm') && !!selectedSlot;
+
   useEffect(() => {
-    if (step !== 'confirm') return;
+    if (!shouldPreview) return;
     runPreview();
-  }, [step, runPreview]);
+  }, [shouldPreview, runPreview]);
 
   // A step can be jumped to only once its prerequisites are filled in, so the
   // tappable indicators never land the user on an incomplete screen.
@@ -304,6 +431,17 @@ export default function NewBookingScreen() {
   // The total cannot: without a preview it is unknown, not "the base price".
   const basePrice = preview?.basePrice ?? selectedPricing?.price ?? 0;
   const discountAmount = preview?.discountAmount ?? 0;
+
+  // Chỉ gọi tên "khung giờ vàng" khi nó là nguồn giảm giá duy nhất: có voucher thì
+  // một dòng đang gộp cả hai, gắn nhãn giờ vàng vào đó là nói sai.
+  const selectedSlotData = slots?.find((s) => s.scheduledAt === selectedSlot);
+  const goldenPercent = selectedSlotData?.isGoldenHour
+    ? selectedSlotData.discountPercent
+    : 0;
+  const discountLabel =
+    goldenPercent > 0 && !selectedVoucher
+      ? t('bookingNew.goldenHourDiscount', { d: goldenPercent })
+      : t('bookingNew.discount');
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -762,10 +900,12 @@ export default function NewBookingScreen() {
                           minWidth: '30%',
                           alignItems: 'center',
                           borderWidth: 1.5,
-                          borderColor: isSelected
-                            ? Colors.primary
-                            : golden
-                              ? Colors.gold
+                          // Golden wins over selected: picking the slot must not erase the
+                          // only thing telling the user it *is* a golden hour.
+                          borderColor: golden
+                            ? Colors.gold
+                            : isSelected
+                              ? Colors.primary
                               : Colors.border,
                         }}
                       >
@@ -780,7 +920,7 @@ export default function NewBookingScreen() {
                         >
                           {label}
                         </Text>
-                        {golden && slot.discountPercent > 0 && (
+                        {golden && (
                           <View
                             style={{
                               position: 'absolute',
@@ -809,7 +949,11 @@ export default function NewBookingScreen() {
                                 color: Colors.white,
                               }}
                             >
-                              -{slot.discountPercent}%
+                              {/* 0% = hạng hiện tại không được giảm trong giờ vàng.
+                                  Vẫn phải gắn nhãn, nếu không slot vàng trông y hệt slot thường. */}
+                              {slot.discountPercent > 0
+                                ? `-${slot.discountPercent}%`
+                                : t('bookingNew.goldenHourTag')}
                             </Text>
                           </View>
                         )}
@@ -822,11 +966,22 @@ export default function NewBookingScreen() {
               </>
             )}
             {selectedSlot && (
-              <Button
-                title={t('common.next')}
-                onPress={goNext}
-                className="mt-4"
-              />
+              <>
+                <PriceSummary
+                  basePrice={basePrice}
+                  discountAmount={discountAmount}
+                  discountLabel={discountLabel}
+                  preview={preview}
+                  previewing={previewing}
+                  previewFailed={previewFailed}
+                  onRetry={runPreview}
+                />
+                <Button
+                  title={t('common.next')}
+                  onPress={goNext}
+                  className="mt-2"
+                />
+              </>
             )}
           </Animated.View>
         )}
@@ -1169,139 +1324,15 @@ export default function NewBookingScreen() {
             </View>
 
             {/* Price breakdown */}
-            <View
-              style={{
-                backgroundColor: Colors.surface,
-                borderRadius: 16,
-                padding: 16,
-                gap: 8,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.05,
-                shadowRadius: 6,
-                elevation: 2,
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <Text style={{ fontSize: 13, color: Colors.textSecondary }}>
-                  {t('bookingNew.basePrice')}
-                </Text>
-                <Text style={{ fontSize: 13, color: Colors.textPrimary }}>
-                  {formatPrice(basePrice)}
-                </Text>
-              </View>
-
-              {preview?.appliedDiscounts?.map((d, i) => (
-                <View
-                  key={i}
-                  style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <Text style={{ fontSize: 13, color: Colors.textSecondary }}>
-                    {d.label}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      color: Colors.success,
-                      fontWeight: '600',
-                    }}
-                  >
-                    -{formatPrice(d.amount)}
-                  </Text>
-                </View>
-              ))}
-
-              {!preview?.appliedDiscounts?.length && discountAmount > 0 && (
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <Text style={{ fontSize: 13, color: Colors.textSecondary }}>
-                    {t('bookingNew.discount')}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      color: Colors.success,
-                      fontWeight: '600',
-                    }}
-                  >
-                    -{formatPrice(discountAmount)}
-                  </Text>
-                </View>
-              )}
-
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  paddingTop: 8,
-                  borderTopWidth: 1,
-                  borderTopColor: Colors.border,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontWeight: '700',
-                    color: Colors.textPrimary,
-                  }}
-                >
-                  {t('bookingNew.total')}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 20,
-                    fontWeight: '800',
-                    color: Colors.primary,
-                  }}
-                >
-                  {previewing
-                    ? '...'
-                    : preview
-                      ? formatPrice(preview.finalPrice)
-                      : '—'}
-                </Text>
-              </View>
-
-              {previewFailed && (
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 10,
-                    marginTop: 4,
-                  }}
-                >
-                  <Text
-                    style={{ flex: 1, fontSize: 12, color: Colors.danger }}
-                  >
-                    {t('bookingNew.previewFailed')}
-                  </Text>
-                  <Pressable onPress={runPreview} hitSlop={8}>
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontWeight: '700',
-                        color: Colors.primary,
-                      }}
-                    >
-                      {t('bookingNew.previewRetry')}
-                    </Text>
-                  </Pressable>
-                </View>
-              )}
-            </View>
+            <PriceSummary
+              basePrice={basePrice}
+              discountAmount={discountAmount}
+              discountLabel={discountLabel}
+              preview={preview}
+              previewing={previewing}
+              previewFailed={previewFailed}
+              onRetry={runPreview}
+            />
 
             <Button
               title={
