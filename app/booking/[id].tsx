@@ -5,6 +5,7 @@ import { Colors } from '@/constants/Colors';
 import { useT } from '@/i18n/useT';
 import { useCancelOrder, useOrder } from '@/hooks/booking/useBooking';
 import { useOrderFeedback } from '@/hooks/feedback/useFeedback';
+import { useOrderWorkOrder } from '@/hooks/work-order/useWorkOrder';
 import { useVehicles } from '@/hooks/vehicle/useVehicle';
 import { OrderStatus, PaymentStatus } from '@/types/booking';
 import { localizedVehicleTypeName } from '@/utils/vehicleTypeLabel';
@@ -14,11 +15,45 @@ import { describeCancelReason } from '@/utils/orderReason';
 import { vehicleIcon } from '@/utils/vehicleIcon';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { ArrowLeft, Calendar, CheckCircle, Clock, CreditCard, Droplets, Hourglass, Sparkles, Star } from 'lucide-react-native';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ArrowLeft, Calendar, CheckCircle, Clock, CreditCard, Droplets, Hourglass, Sparkles, Star, X } from 'lucide-react-native';
+import { useState } from 'react';
+import { Alert, Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
+
+function PhotoSection({
+  title,
+  photos,
+  onOpen,
+  delay,
+}: {
+  title: string;
+  photos: string[];
+  onOpen: (uri: string) => void;
+  delay: number;
+}) {
+  return (
+    <Animated.View entering={FadeInDown.delay(delay).springify()} style={{
+      backgroundColor: Colors.surface, borderRadius: 16, padding: 16,
+      shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+    }}>
+      <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.textPrimary, marginBottom: 10 }}>
+        {title} ({photos.length})
+      </Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {photos.map((uri, i) => (
+          <Pressable key={`${uri}-${i}`} onPress={() => onOpen(uri)}>
+            <Image
+              source={{ uri }}
+              style={{ width: 80, height: 80, borderRadius: 10, backgroundColor: Colors.border }}
+            />
+          </Pressable>
+        ))}
+      </View>
+    </Animated.View>
+  );
+}
 
 function ProgressTracker({ status }: { status: OrderStatus }) {
   const t = useT();
@@ -118,6 +153,8 @@ export default function BookingDetailScreen() {
   const { mutateAsync: cancelOrder, isPending: cancelling } = useCancelOrder();
   const { data: feedbackData } = useOrderFeedback(id);
   const feedback = feedbackData?.feedback ?? null;
+  const { data: workOrder } = useOrderWorkOrder(id);
+  const [viewerUri, setViewerUri] = useState<string | null>(null);
 
   const handleCancel = () => {
     Alert.alert(t('bookingDetail.cancelTitle'), t('bookingDetail.cancelBody'), [
@@ -272,6 +309,24 @@ export default function BookingDetailScreen() {
           </View>
         </Animated.View>
 
+        {!!workOrder?.checkinPhotos?.length && (
+          <PhotoSection
+            title={t('workOrder.checkinPhotos')}
+            photos={workOrder.checkinPhotos}
+            onOpen={setViewerUri}
+            delay={120}
+          />
+        )}
+
+        {!!workOrder?.checkoutPhotos?.length && (
+          <PhotoSection
+            title={t('workOrder.checkoutPhotosDone')}
+            photos={workOrder.checkoutPhotos}
+            onOpen={setViewerUri}
+            delay={140}
+          />
+        )}
+
         {isNoShow ? (
           <Animated.View
             entering={FadeInDown.delay(160).springify()}
@@ -335,6 +390,38 @@ export default function BookingDetailScreen() {
           </Animated.View>
         )}
       </ScrollView>
+
+      <Modal
+        visible={!!viewerUri}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setViewerUri(null)}
+      >
+        <Pressable
+          onPress={() => setViewerUri(null)}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.92)',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Pressable
+            onPress={() => setViewerUri(null)}
+            hitSlop={12}
+            style={{ position: 'absolute', top: 48, right: 20, zIndex: 1, padding: 8 }}
+          >
+            <X size={28} color={Colors.white} strokeWidth={2} />
+          </Pressable>
+          {viewerUri ? (
+            <Image
+              source={{ uri: viewerUri }}
+              style={{ width: '92%', height: '70%' }}
+              resizeMode="contain"
+            />
+          ) : null}
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }

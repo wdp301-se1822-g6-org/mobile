@@ -6,6 +6,7 @@ import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-
 import { useFonts } from 'expo-font';
 import { router, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -83,6 +84,10 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* Edge-to-edge làm status bar trong suốt nên icon ăn theo theme hệ thống.
+          App chỉ có light mode (nền sáng ở mọi màn), để "auto" thì máy đang bật
+          dark mode sẽ vẽ icon trắng lên nền trắng — ép "dark" cho chắc. */}
+      <StatusBar style="dark" />
       <QueryClientProvider client={queryClient}>
         <RealtimeBridge />
         <AuthGuard />
